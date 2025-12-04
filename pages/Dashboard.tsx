@@ -16,7 +16,7 @@ const StatCard = ({ title, value, icon: Icon, color }: any) => (
 );
 
 const Dashboard = () => {
-  const { students, attendance } = useAppContext();
+  const { students, attendance, t } = useAppContext();
 
   const stats = useMemo(() => {
     const today = new Date().toDateString();
@@ -38,15 +38,15 @@ const Dashboard = () => {
   return (
     <div className="space-y-8 animate-fade-in">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title="Total Students" value={stats.total} icon={Users} color="bg-blue-500" />
-        <StatCard title="Present Today" value={stats.present} icon={UserCheck} color="bg-emerald-500" />
-        <StatCard title="Absent" value={stats.absent} icon={AlertCircle} color="bg-red-500" />
-        <StatCard title="Attendance Rate" value={`${stats.rate}%`} icon={Clock} color="bg-violet-500" />
+        <StatCard title={t('totalStudents')} value={stats.total} icon={Users} color="bg-blue-500" />
+        <StatCard title={t('presentToday')} value={stats.present} icon={UserCheck} color="bg-emerald-500" />
+        <StatCard title={t('absent')} value={stats.absent} icon={AlertCircle} color="bg-red-500" />
+        <StatCard title={t('attendanceRate')} value={`${stats.rate}%`} icon={Clock} color="bg-violet-500" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-          <h3 className="text-lg font-semibold text-slate-800 mb-6">Attendance Overview</h3>
+          <h3 className="text-lg font-semibold text-slate-800 mb-6">{t('attendanceRate')}</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -71,7 +71,7 @@ const Dashboard = () => {
         </div>
 
         <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-          <h3 className="text-lg font-semibold text-slate-800 mb-6">Recent Activity</h3>
+          <h3 className="text-lg font-semibold text-slate-800 mb-6">{t('recentActivity')}</h3>
           <div className="space-y-4 max-h-64 overflow-y-auto pr-2">
             {attendance.slice(0, 10).map((record) => (
               <div key={record.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
@@ -89,7 +89,7 @@ const Dashboard = () => {
                         {record.status}
                     </span>
                     <p className="text-[10px] text-slate-400 mt-1">
-                        {record.verificationMethod === 'face_match' ? `Verified (${(record.confidenceScore || 0).toFixed(2)})` : 'Manual'}
+                        {record.verificationMethod === 'face_match' ? `Bio (${(record.confidenceScore || 0).toFixed(2)})` : 'Manual'}
                     </p>
                 </div>
               </div>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { ViewState } from '../types';
-import { LayoutDashboard, ScanLine, UserPlus, FileBarChart, School } from 'lucide-react';
+import { LayoutDashboard, ScanLine, UserPlus, FileBarChart, School, Settings, LogOut, ChevronRight } from 'lucide-react';
+import { useAppContext } from '../context/AppContext';
 
 interface LayoutProps {
   currentView: ViewState;
@@ -23,32 +24,51 @@ const NavItem = ({ view, current, label, icon: Icon, onClick }: any) => (
 );
 
 const Layout: React.FC<LayoutProps> = ({ currentView, onNavigate, children }) => {
+  const { t, settings, currentUser, logout } = useAppContext();
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
       {/* Sidebar */}
-      <aside className="w-full md:w-64 bg-white border-r border-slate-200 h-auto md:h-screen sticky top-0 z-50 flex-shrink-0">
-        <div className="p-6 border-b border-slate-100 flex items-center gap-3">
-           <div className="bg-blue-600 p-2 rounded-lg text-white">
-             <School size={24} />
-           </div>
-           <h1 className="text-xl font-bold tracking-tight text-slate-900">AttendAI</h1>
+      <aside className="w-full md:w-72 bg-white border-r border-slate-200 h-auto md:h-screen sticky top-0 z-50 flex-shrink-0 print:hidden flex flex-col">
+        
+        {/* User Profile Header */}
+        <div className="p-6 border-b border-slate-100 bg-slate-50/50">
+             <div className="flex items-center gap-3 mb-4">
+                <div className="bg-blue-600 p-2 rounded-lg text-white shadow-md shadow-blue-600/20">
+                    <School size={20} />
+                </div>
+                <div>
+                    <h1 className="text-lg font-bold tracking-tight text-slate-900 leading-none">AttendAI</h1>
+                    <p className="text-[10px] text-slate-400 font-medium truncate max-w-[120px] mt-1">{settings.schoolName}</p>
+                </div>
+             </div>
+             
+             {currentUser && (
+                 <div onClick={() => onNavigate('profile')} className="flex items-center gap-3 bg-white p-3 rounded-xl border border-slate-200 shadow-sm cursor-pointer hover:border-blue-300 transition group">
+                     <img src={currentUser.photoUrl} className="w-10 h-10 rounded-full object-cover bg-slate-200" />
+                     <div className="flex-1 min-w-0">
+                         <p className="text-sm font-bold text-slate-900 truncate group-hover:text-blue-600 transition-colors">{currentUser.fullName}</p>
+                         <p className="text-xs text-slate-500 truncate">{currentUser.title}</p>
+                     </div>
+                     <ChevronRight size={16} className="text-slate-300 group-hover:text-blue-500" />
+                 </div>
+             )}
         </div>
         
-        <nav className="p-4 space-y-1">
-          <NavItem view="dashboard" current={currentView} label="Dashboard" icon={LayoutDashboard} onClick={onNavigate} />
-          <NavItem view="scan" current={currentView} label="Scan Attendance" icon={ScanLine} onClick={onNavigate} />
-          <NavItem view="register" current={currentView} label="Register Student" icon={UserPlus} onClick={onNavigate} />
-          <NavItem view="reports" current={currentView} label="Reports" icon={FileBarChart} onClick={onNavigate} />
+        <nav className="p-4 space-y-1 flex-1 overflow-y-auto">
+          <NavItem view="dashboard" current={currentView} label={t('dashboard')} icon={LayoutDashboard} onClick={onNavigate} />
+          <NavItem view="scan" current={currentView} label={t('scan')} icon={ScanLine} onClick={onNavigate} />
+          <NavItem view="register" current={currentView} label={t('register')} icon={UserPlus} onClick={onNavigate} />
+          <NavItem view="reports" current={currentView} label={t('reports')} icon={FileBarChart} onClick={onNavigate} />
+          <div className="pt-4 mt-4 border-t border-slate-100">
+            <NavItem view="settings" current={currentView} label={t('settings')} icon={Settings} onClick={onNavigate} />
+          </div>
         </nav>
 
-        <div className="hidden md:block absolute bottom-0 left-0 right-0 p-6">
-            <div className="bg-slate-50 rounded-lg p-4 border border-slate-100">
-                <p className="text-xs text-slate-500 font-medium mb-1">System Status</p>
-                <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span className="text-xs text-slate-700">Online & Syncing</span>
-                </div>
-            </div>
+        <div className="p-4 border-t border-slate-100">
+             <button onClick={logout} className="flex items-center gap-3 px-4 py-3 rounded-xl text-red-500 hover:bg-red-50 w-full transition-all font-medium">
+                 <LogOut size={20} /> Logout
+             </button>
         </div>
       </aside>
 

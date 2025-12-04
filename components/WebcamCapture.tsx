@@ -3,42 +3,45 @@ import { Camera, RefreshCw, Loader2, Check, X } from 'lucide-react';
 
 interface WebcamCaptureProps {
   onCapture: (imageSrc: string) => void;
+  onQrDetected?: (code: string) => void; // New prop for QR
   label?: string;
   autoStart?: boolean;
-  mode?: 'simple' | 'registration';
+  mode?: 'simple' | 'registration' | 'scanner'; // Added 'scanner' mode
+  pauseScan?: boolean; // Prop to pause scanning
 }
 
 declare global {
   interface Window {
     blazeface: any;
     tf: any;
+    jsQR: any; // Add jsQR type
   }
 }
 
 const WebcamCapture: React.FC<WebcamCaptureProps> = ({ 
     onCapture, 
+    onQrDetected,
     label = "Capture Photo", 
     autoStart = true,
-    mode = 'simple' 
+    mode = 'simple',
+    pauseScan = false
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const analysisRef = useRef<number | null>(null);
   const modelRef = useRef<any>(null);
   
   const [error, setError] = useState<string>('');
   const [isActive, setIsActive] = useState(false);
   const [isVideoReady, setIsVideoReady] = useState(false);
-  
-  // Registration Mode State
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   
-  // Smart Guides State
+  // Registration Mode State
   const [faceBox, setFaceBox] = useState<{x: number, y: number, w: number, h: number} | null>(null);
-  const [isSharp, setIsSharp] = useState(false); // Controls Square Color (Green = Sharp)
-  const [isAligned, setIsAligned] = useState(false); // Controls Oval Color (Green = Centered & Sized)
+  const [isSharp, setIsSharp] = useState(false);
+  const [isAligned, setIsAligned] = useState(false);
 
   const cleanup = useCallback(() => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -67,7 +70,7 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
       
       const mediaStream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
-            facingMode: 'user',
+            facingMode: mode === 'registration' ? 'user' : 'environment', // Use back camera for scanner
             width: { ideal: 1280 },
             height: { ideal: 720 }
         } 
@@ -78,7 +81,6 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
       
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
-        // The event listener is handled in the JSX `onPlaying`
       }
     } catch (err) {
       console.error("Error accessing camera:", err);
@@ -86,14 +88,13 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
       setIsActive(false);
       setIsVideoReady(false);
     }
-  }, [stopCamera]);
+  }, [stopCamera, mode]);
 
-  // Load Face Model
+  // Load Face Model only for Registration
   useEffect(() => {
     if (mode === 'registration' && !modelRef.current && window.blazeface) {
         window.blazeface.load().then((model: any) => {
             modelRef.current = model;
-            console.log("Face model loaded");
         });
     }
   }, [mode]);
@@ -108,19 +109,22 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         
-        context.translate(canvas.width, 0);
-        context.scale(-1, 1);
+        // Only mirror for registration/selfie mode
+        if (mode === 'registration') {
+            context.translate(canvas.width, 0);
+            context.scale(-1, 1);
+        }
         
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
         return canvas.toDataURL('image/jpeg', 0.95);
       }
     }
     return null;
-  }, [isVideoReady]);
+  }, [isVideoReady, mode]);
 
-  // Analysis Loop
+  // Combined Analysis Loop (Face + QR)
   useEffect(() => {
-    if (!isVideoReady || mode !== 'registration' || capturedImage) {
+    if (!isVideoReady || capturedImage || pauseScan) {
         if (analysisRef.current) cancelAnimationFrame(analysisRef.current);
         return;
     }
@@ -129,111 +133,120 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
     let lastTime = 0;
 
     const analyze = async (time: number) => {
-        if (time - lastTime < 100) { // Limit to ~10 FPS to save CPU
+        if (time - lastTime < 100) { 
             analysisRef.current = requestAnimationFrame(analyze);
             return;
         }
         lastTime = time;
 
-        if (!videoRef.current || !canvasRef.current || !modelRef.current) {
+        if (!videoRef.current || !canvasRef.current) {
              analysisRef.current = requestAnimationFrame(analyze);
              return;
         }
 
         const video = videoRef.current;
-        
-        // 1. Detect Face
-        let predictions = [];
-        try {
-            predictions = await modelRef.current.estimateFaces(video, false);
-        } catch (e) {
-            console.warn("Detection error", e);
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+        // --- QR SCANNER LOGIC ---
+        if (mode === 'scanner' && window.jsQR && onQrDetected) {
+             // Draw current frame to canvas for analysis
+             if (video.videoWidth > 0) {
+                 canvas.width = video.videoWidth;
+                 canvas.height = video.videoHeight;
+                 if(ctx) {
+                     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                     const code = window.jsQR(imageData.data, imageData.width, imageData.height, {
+                         inversionAttempts: "dontInvert",
+                     });
+
+                     if (code && code.data) {
+                         onQrDetected(code.data); // Trigger parent
+                         return; // Stop analyzing this frame
+                     }
+                 }
+             }
         }
 
-        if (predictions.length > 0) {
-            const start = predictions[0].topLeft;
-            const end = predictions[0].bottomRight;
-            const size = [end[0] - start[0], end[1] - start[1]];
-            
-            // Normalize Coordinates (0-1)
-            // Note: video is mirrored via CSS, but model coordinates are natural. 
-            // We need to flip X for UI display.
-            const rawX = start[0];
-            const rawY = start[1];
-            const rawW = size[0];
-            const rawH = size[1];
-
-            const videoW = video.videoWidth;
-            const videoH = video.videoHeight;
-
-            // UI Box (Percentage based) - Flip X for mirrored view
-            const uiX = 100 - ((rawX + rawW) / videoW * 100); 
-            const uiY = (rawY / videoH) * 100;
-            const uiW = (rawW / videoW) * 100;
-            const uiH = (rawH / videoH) * 100;
-            
-            setFaceBox({ x: uiX, y: uiY, w: uiW, h: uiH });
-
-            // 2. Check Sharpness (Crop face area and calculate variance)
-            const canvas = canvasRef.current;
-            const ctx = canvas.getContext('2d', { willReadFrequently: true });
-            if (ctx) {
-                // Draw a small version of the face for pixel analysis
-                const sampleSize = 64;
-                canvas.width = sampleSize;
-                canvas.height = sampleSize;
-                ctx.drawImage(video, rawX, rawY, rawW, rawH, 0, 0, sampleSize, sampleSize);
-                
-                const imageData = ctx.getImageData(0, 0, sampleSize, sampleSize);
-                const data = imageData.data;
-                
-                // Simple Laplacian-like edge check or Variance
-                let sumDiff = 0;
-                for(let i=0; i<data.length; i+=4) {
-                    // Compare with right neighbor
-                    if (i % (sampleSize*4) < (sampleSize-1)*4) {
-                        sumDiff += Math.abs(data[i] - data[i+4]);
-                    }
-                }
-                const score = sumDiff / (sampleSize * sampleSize);
-                const sharp = score > 15; // Tuning threshold
-                setIsSharp(sharp);
-
-                // 3. Check Oval Alignment
-                // Oval Definition: Centered, width ~40%, height ~60%
-                const ovalCW = 0.5; // Center X
-                const ovalCH = 0.5; // Center Y
-                const faceCX = (rawX + rawW/2) / videoW;
-                const faceCY = (rawY + rawH/2) / videoH;
-
-                // Distance from center (0.1 = 10% tolerance)
-                const centered = Math.abs(faceCX - ovalCW) < 0.1 && Math.abs(faceCY - ovalCH) < 0.1;
-                
-                // Size Check (Face width should be roughly 40-70% of screen width? No, relative to oval)
-                // Let's say face should be substantial.
-                const sized = (rawW / videoW) > 0.15 && (rawW / videoW) < 0.55;
-
-                const aligned = centered && sized;
-                setIsAligned(aligned);
-
-                // 4. Auto Capture Trigger
-                if (sharp && aligned) {
-                    consecutiveGoodFrames++;
-                } else {
-                    consecutiveGoodFrames = 0;
-                }
-
-                if (consecutiveGoodFrames > 8) { // ~1 second approx
-                     const fullImg = captureFrame();
-                     if (fullImg) setCapturedImage(fullImg);
-                }
+        // --- REGISTRATION LOGIC ---
+        if (mode === 'registration' && modelRef.current) {
+            // ... (Existing Face Detection & Sharpness Logic) ...
+             let predictions = [];
+            try {
+                predictions = await modelRef.current.estimateFaces(video, false);
+            } catch (e) {
+                console.warn("Detection error", e);
             }
 
-        } else {
-            setFaceBox(null);
-            setIsSharp(false);
-            setIsAligned(false);
-            consecutiveGoodFrames = 0;
+            if (predictions.length > 0) {
+                const start = predictions[0].topLeft;
+                const end = predictions[0].bottomRight;
+                const size = [end[0] - start[0], end[1] - start[1]];
+                
+                const rawX = start[0];
+                const rawY = start[1];
+                const rawW = size[0];
+                const rawH = size[1];
+
+                const videoW = video.videoWidth;
+                const videoH = video.videoHeight;
+
+                const uiX = 100 - ((rawX + rawW) / videoW * 100); 
+                const uiY = (rawY / videoH) * 100;
+                const uiW = (rawW / videoW) * 100;
+                const uiH = (rawH / videoH) * 100;
+                
+                setFaceBox({ x: uiX, y: uiY, w: uiW, h: uiH });
+
+                if (ctx) {
+                    const sampleSize = 64;
+                    canvas.width = sampleSize;
+                    canvas.height = sampleSize;
+                    ctx.drawImage(video, rawX, rawY, rawW, rawH, 0, 0, sampleSize, sampleSize);
+                    
+                    const imageData = ctx.getImageData(0, 0, sampleSize, sampleSize);
+                    const data = imageData.data;
+                    
+                    let sumDiff = 0;
+                    for(let i=0; i<data.length; i+=4) {
+                        if (i % (sampleSize*4) < (sampleSize-1)*4) {
+                            sumDiff += Math.abs(data[i] - data[i+4]);
+                        }
+                    }
+                    const score = sumDiff / (sampleSize * sampleSize);
+                    const sharp = score > 15; 
+                    setIsSharp(sharp);
+
+                    const ovalCW = 0.5; 
+                    const ovalCH = 0.5; 
+                    const faceCX = (rawX + rawW/2) / videoW;
+                    const faceCY = (rawY + rawH/2) / videoH;
+
+                    const centered = Math.abs(faceCX - ovalCW) < 0.1 && Math.abs(faceCY - ovalCH) < 0.1;
+                    const sized = (rawW / videoW) > 0.15 && (rawW / videoW) < 0.55;
+
+                    const aligned = centered && sized;
+                    setIsAligned(aligned);
+
+                    if (sharp && aligned) {
+                        consecutiveGoodFrames++;
+                    } else {
+                        consecutiveGoodFrames = 0;
+                    }
+
+                    if (consecutiveGoodFrames > 8) {
+                         const fullImg = captureFrame();
+                         if (fullImg) setCapturedImage(fullImg);
+                    }
+                }
+
+            } else {
+                setFaceBox(null);
+                setIsSharp(false);
+                setIsAligned(false);
+                consecutiveGoodFrames = 0;
+            }
         }
 
         analysisRef.current = requestAnimationFrame(analyze);
@@ -244,21 +257,15 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
     return () => {
         if (analysisRef.current) cancelAnimationFrame(analysisRef.current);
     };
-  }, [isVideoReady, mode, capturedImage, captureFrame]);
+  }, [isVideoReady, mode, capturedImage, pauseScan, captureFrame, onQrDetected]);
 
 
   const handleVideoPlaying = () => {
-     // Strict Warm-up sequence
-     // 1. Wait for playback to actually start
-     // 2. Wait an additional 1.5s (blind time) to let Auto-Exposure stabilize
-     // 3. Reveal video
      if (!isVideoReady && !timeoutRef.current) {
          timeoutRef.current = setTimeout(() => {
-             // Double check readyState
-             if (videoRef.current && videoRef.current.readyState >= 3) { // HAVE_FUTURE_DATA
+             if (videoRef.current && videoRef.current.readyState >= 3) {
                  setIsVideoReady(true);
              } else {
-                 // Fallback poll
                  const check = setInterval(() => {
                      if (videoRef.current && videoRef.current.readyState >= 3) {
                          setIsVideoReady(true);
@@ -266,7 +273,7 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
                      }
                  }, 200);
              }
-         }, 1500); // 1.5s blind warm-up
+         }, 1000); // 1s warm-up
      }
   };
 
@@ -286,7 +293,6 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
           onCapture(capturedImage);
           setCapturedImage(null);
           setIsVideoReady(false);
-          setFaceBox(null);
           setTimeout(() => setIsVideoReady(true), 500);
       }
   };
@@ -298,7 +304,6 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
       setTimeout(() => setIsVideoReady(true), 500);
   };
 
-  // Lifecycle
   useEffect(() => {
     if (autoStart) startCamera();
     else stopCamera();
@@ -306,7 +311,7 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
   }, [autoStart, startCamera, stopCamera]);
 
   return (
-    <div className="relative w-full max-w-md mx-auto aspect-[4/3] bg-black rounded-xl overflow-hidden shadow-2xl isolate group">
+    <div className={`relative w-full h-full bg-black rounded-xl overflow-hidden shadow-2xl isolate group ${mode === 'scanner' ? 'aspect-auto' : 'aspect-[4/3]'}`}>
       
       {/* Background */}
       <div className="absolute inset-0 bg-black z-0"></div>
@@ -327,110 +332,49 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
         </div>
       )}
 
-      {/* Video Element */}
+      {/* Video Element - Full Cover for Scanner */}
       <video
         ref={videoRef}
         autoPlay
         playsInline
         muted
         onPlaying={handleVideoPlaying} 
-        className={`relative z-10 w-full h-full object-cover transform scale-x-[-1] transition-opacity duration-500 bg-black ${
+        className={`relative z-10 w-full h-full object-cover transition-opacity duration-500 bg-black ${
             (isActive && isVideoReady && !capturedImage) ? 'opacity-100' : 'opacity-0 invisible'
-        }`}
+        } ${mode === 'registration' ? 'transform scale-x-[-1]' : ''}`} // Only mirror for registration
       />
 
-      {/* Captured Image Preview Overlay */}
-      {capturedImage && (
+      {/* Registration Preview Overlay */}
+      {capturedImage && mode === 'registration' && (
           <div className="absolute inset-0 z-40 bg-black flex items-center justify-center animate-in fade-in duration-300">
               <img src={capturedImage} alt="Captured" className="absolute inset-0 w-full h-full object-cover" />
               <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/90 to-transparent flex items-center justify-center gap-6">
-                  <button 
-                    onClick={handleRetake}
-                    className="flex flex-col items-center gap-2 text-red-400 hover:text-red-300 transition"
-                  >
-                      <div className="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center border border-red-500/50">
-                          <X size={24} />
-                      </div>
-                      <span className="text-xs font-semibold uppercase tracking-wider">Delete</span>
+                  <button onClick={handleRetake} className="flex flex-col items-center gap-2 text-red-400 hover:text-red-300 transition">
+                      <div className="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center border border-red-500/50"><X size={24} /></div>
                   </button>
-
-                  <button 
-                    onClick={handleConfirm}
-                    className="flex flex-col items-center gap-2 text-green-400 hover:text-green-300 transition"
-                  >
-                       <div className="w-14 h-14 rounded-full bg-green-500/20 flex items-center justify-center border-2 border-green-500">
-                          <Check size={28} />
-                      </div>
-                      <span className="text-xs font-semibold uppercase tracking-wider">Confirm</span>
+                  <button onClick={handleConfirm} className="flex flex-col items-center gap-2 text-green-400 hover:text-green-300 transition">
+                       <div className="w-14 h-14 rounded-full bg-green-500/20 flex items-center justify-center border-2 border-green-500"><Check size={28} /></div>
                   </button>
               </div>
           </div>
       )}
 
-      {/* --- REGISTRATION SMART GUIDES --- */}
+      {/* Registration Guides */}
       {mode === 'registration' && isActive && isVideoReady && !capturedImage && (
         <div className="absolute inset-0 z-30 pointer-events-none overflow-hidden">
-            
-            {/* 1. OVAL GUIDE (Static, Centered) */}
-            <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[40%] h-[60%] rounded-[50%] border-[3px] transition-all duration-300 ${
-                isAligned ? 'border-green-400 bg-green-400/10 shadow-[0_0_30px_rgba(74,222,128,0.3)]' : 'border-white/30 border-dashed'
-            }`}>
-                 <div className={`absolute -top-10 left-1/2 -translate-x-1/2 whitespace-nowrap px-3 py-1 rounded-full text-xs font-bold backdrop-blur-sm transition-colors ${
-                     isAligned ? 'bg-green-500 text-white' : 'bg-black/50 text-white/70'
-                 }`}>
-                    {isAligned ? 'Position Good' : 'Fit Face in Oval'}
-                 </div>
-            </div>
-
-            {/* 2. SQUARE GUIDE (Dynamic, Tracks Face) */}
+            <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[40%] h-[60%] rounded-[50%] border-[3px] transition-all duration-300 ${isAligned ? 'border-green-400 bg-green-400/10' : 'border-white/30 border-dashed'}`} />
             {faceBox && (
                 <div 
-                    className={`absolute border-2 transition-all duration-100 ease-linear ${
-                        isSharp ? 'border-green-400 shadow-[0_0_15px_rgba(74,222,128,0.5)]' : 'border-red-500/80'
-                    }`}
-                    style={{
-                        left: `${faceBox.x}%`,
-                        top: `${faceBox.y}%`,
-                        width: `${faceBox.w}%`,
-                        height: `${faceBox.h}%`
-                    }}
-                >
-                     <div className={`absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap px-3 py-1 rounded-full text-xs font-bold backdrop-blur-sm transition-colors ${
-                         isSharp ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
-                     }`}>
-                        {isSharp ? 'Focus Locked' : 'Hold Steady'}
-                     </div>
-                </div>
+                    className={`absolute border-2 transition-all duration-100 ease-linear ${isSharp ? 'border-green-400' : 'border-red-500/80'}`}
+                    style={{ left: `${faceBox.x}%`, top: `${faceBox.y}%`, width: `${faceBox.w}%`, height: `${faceBox.h}%` }}
+                />
             )}
-            
-            {/* Helper Text if no face detected */}
-            {!faceBox && (
-                <div className="absolute bottom-4 left-0 right-0 text-center">
-                    <span className="bg-black/60 text-white px-4 py-2 rounded-full text-sm backdrop-blur-md animate-pulse">
-                        Detecting Face...
-                    </span>
-                </div>
-            )}
-
         </div>
       )}
 
       <canvas ref={canvasRef} className="hidden" />
 
-      {/* Manual Capture Button (Simple Mode Only) */}
-      {mode === 'simple' && isActive && isVideoReady && !capturedImage && (
-        <div className="absolute bottom-6 left-0 right-0 flex justify-center z-30">
-           <button 
-            onClick={handleManualCapture}
-            className="bg-white rounded-full p-1 shadow-2xl hover:scale-105 transition active:scale-95"
-          >
-            <div className="w-16 h-16 rounded-full border-4 border-white flex items-center justify-center bg-transparent">
-                 <div className="w-14 h-14 bg-red-500 rounded-full hover:bg-red-600 transition" />
-            </div>
-          </button>
-        </div>
-      )}
-      
+      {/* Only show refresh button if active */}
        {isActive && (
         <button 
           onClick={() => { stopCamera(); setTimeout(startCamera, 100); }}

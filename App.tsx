@@ -1,14 +1,22 @@
 import React, { useState } from 'react';
-import { AppProvider } from './context/AppContext';
+import { AppProvider, useAppContext } from './context/AppContext';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Scanner from './pages/Scanner';
 import Registration from './pages/Registration';
 import Reports from './pages/Reports';
+import Settings from './pages/Settings';
+import Login from './pages/Login';
+import Profile from './pages/Profile';
 import { ViewState } from './types';
 
-const App = () => {
+const AppContent = () => {
+  const { currentUser } = useAppContext();
   const [currentView, setCurrentView] = useState<ViewState>('dashboard');
+
+  if (!currentUser) {
+    return <Login />;
+  }
 
   const renderView = () => {
     switch (currentView) {
@@ -16,15 +24,23 @@ const App = () => {
       case 'scan': return <Scanner />;
       case 'register': return <Registration />;
       case 'reports': return <Reports />;
+      case 'settings': return <Settings />;
+      case 'profile': return <Profile />;
       default: return <Dashboard />;
     }
   };
 
   return (
+    <Layout currentView={currentView} onNavigate={setCurrentView}>
+      {renderView()}
+    </Layout>
+  );
+};
+
+const App = () => {
+  return (
     <AppProvider>
-      <Layout currentView={currentView} onNavigate={setCurrentView}>
-        {renderView()}
-      </Layout>
+      <AppContent />
     </AppProvider>
   );
 };

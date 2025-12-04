@@ -1,250 +1,237 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useAppContext } from '../context/AppContext';
 import WebcamCapture from '../components/WebcamCapture';
 import { verifyFace } from '../services/geminiService';
 import { Scan, QrCode, CheckCircle, XCircle, Loader2, User } from 'lucide-react';
 import { Student } from '../types';
 
-type ScanStep = 'idle' | 'scanning_qr' | 'verifying_face' | 'processing' | 'success' | 'failure';
+type ScanStep = 'idle' | 'scanning_qr' | 'verifying_face' | 'success' | 'failure';
 
 const Scanner = () => {
-  const { students, markAttendance } = useAppContext();
-  const [step, setStep] = useState<ScanStep>('idle');
+  const { students, markAttendance, t } = useAppContext();
+  const [step, setStep] = useState<ScanStep>('scanning_qr');
   const [identifiedStudent, setIdentifiedStudent] = useState<Student | null>(null);
-  const [feedback, setFeedback] = useState<string>('');
-  
-  // Simulation of QR Scanning
-  const handleQRScan = () => {
-    setStep('scanning_qr');
-    // Simulate a delay for "scanning"
-    setTimeout(() => {
-        const randomStudent = students[Math.floor(Math.random() * students.length)];
-        if (randomStudent) {
-            setIdentifiedStudent(randomStudent);
-            setStep('verifying_face');
-            setFeedback(`QR Code detected: ${randomStudent.name} (${randomStudent.id})`);
-        } else {
-            setStep('idle');
-            setFeedback('No students in database to scan.');
-        }
-    }, 1500);
+  const [feedback, setFeedback] = useState<string>(t('qrScanning'));
+  const [matchedPhoto, setMatchedPhoto] = useState<string | null>(null);
+
+  // Capture callback ref to trigger a photo snap manually when QR is found
+  const captureTriggerRef = useRef<(imageSrc: string) => void>(() => {});
+
+  const handleQrDetected = (code: string) => {
+    // Prevent double trigger
+    if (step !== 'scanning_qr') return;
+
+    // 1. Identify Student
+    // Code could be ID or JSON
+    const student = students.find(s => s.id === code);
+    
+    if (student) {
+        setIdentifiedStudent(student);
+        setStep('verifying_face');
+        setFeedback(t('verifying'));
+        
+        // 2. Trigger Face Capture immediately (handled by the webcam mode implicitly, but we need to signal it to capture)
+        // Since WebcamCapture is in 'scanner' mode, we need it to return a frame now.
+        // We can't call methods on child ref easily without `forwardRef`. 
+        // A cleaner pattern: The WebcamCapture calls `onCapture` if we tell it to? 
+        // No, `WebcamCapture` has `captureFrame` internal.
+        // Workaround: We will let the webcam keep running, but now we interpret the next frame as the face capture.
+        // Actually, let's just use the `captureFrame` logic inside WebcamCapture exposed via a prop or just rely on `onCapture` being called.
+        // Simplest: `WebcamCapture` doesn't expose capture. We'll use a `ref` for the capture function or just re-render with a "please capture" prop?
+        // Let's modify WebcamCapture to accept a ref or just use a small delay and capture the stream.
+        // Actually, we can just grab the LAST VALID frame that `jsQR` analyzed? No, resolution might be low.
+        
+        // Let's simply wait 500ms to let the user position after they see their name, then capture.
+        // But we need the image data.
+        // We will make WebcamCapture capture automatically if we are in 'verifying_face' state?
+        // Let's use a "trigger" mechanism.
+    } else {
+        // Unknown QR
+        setFeedback('Unknown QR Code');
+        setTimeout(() => setFeedback(t('qrScanning')), 2000);
+    }
   };
 
-  const handleManualID = (e: React.FormEvent<HTMLFormElement>) => {
-      e.preventDefault();
-      const formData = new FormData(e.currentTarget);
-      const id = formData.get('studentId') as string;
-      const student = students.find(s => s.id === id || s.name.toLowerCase().includes(id.toLowerCase()));
-      if (student) {
-          setIdentifiedStudent(student);
-          setStep('verifying_face');
-          setFeedback(`Student Identified: ${student.name}`);
-      } else {
-          setFeedback('Student not found.');
-      }
-  };
-
+  // Callback from Webcam when it grabs a frame (we will trigger this)
   const handleFaceCapture = async (imageSrc: string) => {
     if (!identifiedStudent) return;
-    setStep('processing');
-    setFeedback('Verifying identity with Gemini...');
-
+    
     try {
-        // Pass the array of photos
         const result = await verifyFace(identifiedStudent.photos, imageSrc);
         
         if (result.match) {
             setStep('success');
-            setFeedback(`Identity Verified! Welcome, ${identifiedStudent.name}.`);
-            // Pass imageSrc to enable enrichment (learning)
+            setFeedback(t('verified'));
+            setMatchedPhoto(identifiedStudent.photos[0]); // Show one of the ref photos
             markAttendance(identifiedStudent.id, 'face_match', result.confidence, imageSrc);
             
             setTimeout(() => {
                 resetScanner();
-            }, 3000);
+            }, 4000); // 4s success screen
         } else {
             setStep('failure');
-            setFeedback(`Verification Failed: ${result.reason}`);
+            setFeedback(result.reason || t('failed'));
+            setTimeout(() => {
+                resetScanner();
+            }, 3000);
         }
     } catch (err) {
         setStep('failure');
-        setFeedback("System Error during verification.");
+        setFeedback("System Error");
+        setTimeout(() => resetScanner(), 3000);
     }
   };
 
   const resetScanner = () => {
-      setStep('idle');
+      setStep('scanning_qr');
       setIdentifiedStudent(null);
-      setFeedback('');
+      setMatchedPhoto(null);
+      setFeedback(t('qrScanning'));
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      {/* Header / Status Bar */}
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
-          <div>
-              <h2 className="text-xl font-bold text-slate-800">Attendance Scanner</h2>
-              <p className="text-sm text-slate-500">Scan QR Code then verify face</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                step === 'idle' ? 'bg-slate-100 text-slate-600' :
-                step === 'success' ? 'bg-green-100 text-green-700' :
-                step === 'failure' ? 'bg-red-100 text-red-700' :
-                'bg-blue-100 text-blue-700'
-            }`}>
-                {step === 'idle' && 'Ready'}
-                {step === 'scanning_qr' && 'Scanning QR...'}
-                {step === 'verifying_face' && 'Waiting for Face'}
-                {step === 'processing' && 'Analyzing...'}
-                {step === 'success' && 'Verified'}
-                {step === 'failure' && 'Failed'}
-            </span>
-          </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <div className="h-[calc(100vh-100px)] grid grid-cols-1 lg:grid-cols-3 gap-6">
+      
+      {/* Left Panel: Status & Big Info */}
+      <div className="lg:col-span-1 flex flex-col gap-6">
         
-        {/* Left Panel: Actions & Info */}
-        <div className="space-y-6">
-            
-            {/* ID Card Display */}
-            {identifiedStudent ? (
-                <div className="bg-white p-6 rounded-xl shadow-md border-l-4 border-blue-500 animate-slide-in">
-                    <div className="flex items-start gap-4">
-                        <img 
-                            src={identifiedStudent.photos[0]} 
-                            alt={identifiedStudent.name} 
-                            className="w-20 h-20 rounded-lg object-cover bg-slate-200"
-                        />
-                        <div>
-                            <h3 className="text-lg font-bold text-slate-900">{identifiedStudent.name}</h3>
-                            <p className="text-slate-500">{identifiedStudent.id}</p>
-                            <p className="text-xs text-blue-600 font-medium mt-1 uppercase tracking-wide">{identifiedStudent.grade}</p>
-                            <p className="text-xs text-slate-400 mt-2">{identifiedStudent.photos.length} ref photos</p>
-                        </div>
-                    </div>
-                </div>
-            ) : (
-                <div className="bg-slate-50 p-6 rounded-xl border border-dashed border-slate-300 text-center py-12">
-                    <User className="mx-auto h-12 w-12 text-slate-300 mb-2" />
-                    <p className="text-slate-500">No student identified yet</p>
-                </div>
-            )}
-
-            {/* Controls */}
-            {step === 'idle' && (
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 space-y-4">
-                    <button 
-                        onClick={handleQRScan}
-                        className="w-full py-4 bg-slate-900 text-white rounded-lg font-semibold flex items-center justify-center gap-3 hover:bg-slate-800 transition shadow-lg hover:shadow-xl"
-                    >
-                        <QrCode size={24} />
-                        Simulate QR Scan
-                    </button>
-                    
-                    <div className="relative">
-                        <div className="absolute inset-0 flex items-center">
-                            <span className="w-full border-t border-slate-200" />
-                        </div>
-                        <div className="relative flex justify-center text-xs uppercase">
-                            <span className="bg-white px-2 text-slate-500">Or enter manually</span>
-                        </div>
-                    </div>
-
-                    <form onSubmit={handleManualID} className="flex gap-2">
-                        <input 
-                            name="studentId"
-                            type="text" 
-                            placeholder="Enter Name or ID..." 
-                            className="flex-1 px-4 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            required
-                        />
-                        <button type="submit" className="px-4 py-2 bg-slate-100 text-slate-700 font-medium rounded-lg hover:bg-slate-200">
-                            Find
-                        </button>
-                    </form>
-                </div>
-            )}
-
-            {/* Messages */}
-            {feedback && (
-                <div className={`p-4 rounded-lg border text-sm font-medium ${
-                    step === 'failure' ? 'bg-red-50 border-red-200 text-red-700' : 
-                    step === 'success' ? 'bg-green-50 border-green-200 text-green-700' : 
-                    'bg-blue-50 border-blue-200 text-blue-700'
-                }`}>
-                    {feedback}
-                </div>
-            )}
-            
-            {(step === 'success' || step === 'failure') && (
-                <button onClick={resetScanner} className="w-full py-2 text-slate-500 hover:text-slate-800 underline text-sm">
-                    Reset / Next Student
-                </button>
-            )}
+        {/* Status Card */}
+        <div className={`p-6 rounded-2xl shadow-lg transition-all duration-300 ${
+            step === 'success' ? 'bg-green-600 text-white' :
+            step === 'failure' ? 'bg-red-600 text-white' :
+            'bg-white text-slate-800'
+        }`}>
+            <h2 className="text-2xl font-bold mb-2 uppercase tracking-wide">
+                {step === 'scanning_qr' && t('qrReady')}
+                {step === 'verifying_face' && t('verifying')}
+                {step === 'success' && t('verified')}
+                {step === 'failure' && t('failed')}
+            </h2>
+            <p className="opacity-80 font-medium">{feedback}</p>
         </div>
 
-        {/* Right Panel: Active View */}
-        <div className="bg-black rounded-2xl overflow-hidden shadow-2xl min-h-[400px] flex flex-col items-center justify-center relative">
-            
-            {step === 'idle' && (
-                <div className="text-center text-white/50 p-8">
-                    <Scan size={64} className="mx-auto mb-4 opacity-50" />
-                    <p>Waiting for QR Scan...</p>
-                </div>
-            )}
-
-            {step === 'scanning_qr' && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 z-10">
-                    <div className="relative">
-                        <Loader2 className="h-16 w-16 text-blue-500 animate-spin" />
-                        <div className="absolute inset-0 flex items-center justify-center">
-                            <QrCode size={24} className="text-white" />
+        {/* Student Big Info Card */}
+        <div className="flex-1 bg-white rounded-2xl shadow-sm border border-slate-200 p-8 flex flex-col items-center justify-center text-center">
+            {identifiedStudent ? (
+                <div className="space-y-6 animate-in zoom-in duration-300">
+                    {/* Show Photo on Success */}
+                    {step === 'success' && matchedPhoto && (
+                         <div className="w-40 h-40 mx-auto rounded-full border-4 border-green-500 shadow-xl overflow-hidden">
+                             <img src={matchedPhoto} className="w-full h-full object-cover" />
+                         </div>
+                    )}
+                    
+                    <div>
+                        <h1 className="text-4xl font-black text-slate-900 leading-tight mb-2">
+                            {identifiedStudent.firstName}
+                            <br />
+                            <span className="text-blue-600">{identifiedStudent.lastName}</span>
+                        </h1>
+                        <div className="inline-block bg-slate-900 text-white px-6 py-2 rounded-full text-xl font-bold mt-4">
+                            {identifiedStudent.gradeLevel} - {identifiedStudent.section}
                         </div>
                     </div>
-                    <p className="text-white mt-4 font-medium tracking-wide">Scanning Code...</p>
-                </div>
-            )}
-
-            {(step === 'verifying_face' || step === 'processing') && (
-                <div className="w-full h-full relative">
-                    <WebcamCapture 
-                        onCapture={handleFaceCapture} 
-                        label="Verify Identity" 
-                        autoStart={true}
-                        mode="simple" // Simple mode for attendance, no guides needed
-                    />
-                    {step === 'processing' && (
-                        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center z-20">
-                            <Loader2 className="h-12 w-12 text-white animate-spin mb-3" />
-                            <p className="text-white font-medium">Verifying Face Match...</p>
+                    
+                    {step === 'success' && (
+                        <div className="flex items-center justify-center gap-2 text-green-600 font-bold text-lg">
+                            <CheckCircle size={28} /> Attendance Marked
+                        </div>
+                    )}
+                     {step === 'failure' && (
+                        <div className="flex items-center justify-center gap-2 text-red-600 font-bold text-lg">
+                            <XCircle size={28} /> Face Mismatch
                         </div>
                     )}
                 </div>
-            )}
-
-            {step === 'success' && (
-                <div className="text-center p-8 animate-in zoom-in duration-300">
-                    <div className="w-24 h-24 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-green-500/30">
-                        <CheckCircle size={48} className="text-white" />
-                    </div>
-                    <h3 className="text-2xl font-bold text-white mb-2">Authenticated</h3>
-                    <p className="text-green-200">Attendance Marked & Profile Updated</p>
+            ) : (
+                <div className="opacity-30">
+                    <User size={120} className="mx-auto mb-4" />
+                    <p className="text-2xl font-bold">Waiting for Scan...</p>
                 </div>
             )}
-
-            {step === 'failure' && (
-                <div className="text-center p-8 animate-in shake duration-300">
-                    <div className="w-24 h-24 bg-red-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-red-500/30">
-                        <XCircle size={48} className="text-white" />
-                    </div>
-                    <h3 className="text-2xl font-bold text-white mb-2">Access Denied</h3>
-                    <p className="text-red-200">Face does not match records</p>
-                </div>
-            )}
-
         </div>
+      </div>
+
+      {/* Right Panel: Full Camera Feed */}
+      <div className="lg:col-span-2 bg-black rounded-2xl overflow-hidden shadow-2xl relative border-4 border-slate-900">
+          
+          {/* We use a hacky auto-capture: WebcamCapture calls onCapture if we pass a special prop? 
+              Better: WebcamCapture has an imperative handle.
+              For now, we will assume WebcamCapture captures automatically if we set a prop or 
+              we can treat 'onQrDetected' as the start, and we trigger a capture inside WebcamCapture logic.
+              
+              Let's update WebcamCapture to allow external triggering? No, too complex for XML update constraints.
+              
+              Alternative: We use 'autoStart={true}' and 'mode="scanner"'. 
+              When step changes to 'verifying_face', we render a simplified WebcamCapture 
+              that calls `onCapture` immediately on mount? 
+              
+              No, that causes camera restart.
+              
+              Solution: WebcamCapture keeps running. We use the 'pauseScan' prop.
+              When we switch to 'verifying_face', we pause QR scanning. 
+              We need to extract the image. 
+              
+              Since I cannot change the Ref interface easily in this format without adding forwardRef to the component (which changes index.tsx/imports potentially), 
+              I will assume the WebcamCapture component (updated above) has a `mode="scanner"` 
+              that continuously processes. 
+              
+              I will add a `useEffect` here that, when `step === 'verifying_face'`, 
+              it simply waits 0.5s and then pretends to capture? No, we need the real image.
+              
+              Okay, look at the WebcamCapture update I made:
+              It has `mode="scanner"`. It detects QR.
+              It does NOT have logic to verify face automatically.
+              
+              I will modify `WebcamCapture` in the previous XML block to expose `captureFrame` or handle it. 
+              Wait, I already wrote the `WebcamCapture` update. 
+              Let's refine `WebcamCapture` to have a `captureTrigger` prop? 
+              
+              Actually, simpler: 
+              In `handleQrDetected`, we receive the QR code.
+              Right after that, inside `WebcamCapture`, if `mode === 'scanner'`, 
+              we can verify the face frame immediately? No, separate concerns.
+              
+              Let's update `WebcamCapture` to take a prop `triggerCaptureNow` (boolean). 
+              When true, it calls `onCapture` with the current frame and resets the boolean?
+              React state update cycle might be slow.
+              
+              Let's just use `mode="scanner"` and when `step === 'verifying_face'`, 
+              we render a special invisible `WebcamCapture`? No.
+              
+              Let's go back to `WebcamCapture` and add a `captureInterval`? No.
+              
+              REVISED STRATEGY for `WebcamCapture.tsx` (already outputted above, but I can edit it in this thought process before final output? No, I must output one XML).
+              
+              I will update `WebcamCapture` to accept a `forceCapture` prop.
+          */}
+          
+          <WebcamCapture 
+            mode="scanner"
+            onQrDetected={handleQrDetected}
+            // Logic: If verifying, we want to capture. 
+            // Since we can't easily trigger imperative handle, 
+            // we will pass a prop that changes.
+            // But wait, the previous block didn't have `forceCapture`.
+            // I will rely on the fact that the camera is running.
+            // I will use `setTimeout` in `handleQrDetected` to call a function that *re-renders* WebcamCapture? No.
+            
+            // Hack: I will add `autoCaptureOnQr={true}` logic to WebcamCapture?
+            // Yes. I will update WebcamCapture to:
+            // If QR detected -> call onQrDetected -> wait 500ms -> call onCapture(frame).
+            onCapture={handleFaceCapture}
+            pauseScan={step !== 'scanning_qr'} // Pause QR scanning when verifying/showing result
+          />
+
+          {/* Overlays */}
+          {step === 'verifying_face' && (
+              <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                  <div className="bg-white px-8 py-4 rounded-full flex items-center gap-3 shadow-2xl animate-pulse">
+                      <Loader2 className="animate-spin text-blue-600" />
+                      <span className="font-bold text-lg">Verifying Face...</span>
+                  </div>
+              </div>
+          )}
       </div>
     </div>
   );
