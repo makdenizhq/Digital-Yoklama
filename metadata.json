@@ -1,0 +1,7 @@
+{
+  "name": "AttendAI",
+  "description": "Smart attendance system using QR code simulation and Gemini-powered facial verification.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
