@@ -1,7 +1,19 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { ViewState } from '../types';
-import { LayoutDashboard, ScanLine, UserPlus, FileBarChart, Settings, School, User as UserIcon, LogOut } from 'lucide-react';
+import { 
+  LayoutDashboard, 
+  ScanLine, 
+  UserPlus, 
+  FileBarChart, 
+  Settings, 
+  UserCircle, 
+  ChevronLeft, 
+  ChevronRight,
+  LogOut,
+  School,
+  User as UserIcon
+} from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 
 interface LayoutProps {
@@ -10,98 +22,140 @@ interface LayoutProps {
   children: React.ReactNode;
 }
 
-const NavItem = ({ view, current, icon: Icon, onClick, label }: any) => (
-  <button
-    onClick={() => onClick(view)}
-    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium text-sm
-      ${current === view 
-        ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30' 
-        : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
-      }`}
-  >
-    <Icon size={20} />
-    {label}
-  </button>
-);
-
 const Layout: React.FC<LayoutProps> = ({ currentView, onNavigate, children }) => {
   const { settings, currentUser, logout, t } = useAppContext();
+  
+  // Sidebar'ın açık/kapalı durumu
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+  // Menü öğeleri
+  const menuItems = [
+    { id: 'dashboard', label: t('dashboard'), icon: LayoutDashboard },
+    { id: 'scan', label: t('scan'), icon: ScanLine },
+    { id: 'register', label: t('register'), icon: UserPlus },
+    { id: 'reports', label: t('reports'), icon: FileBarChart },
+    { id: 'settings', label: t('settings'), icon: Settings },
+  ];
 
   return (
-    <div className="flex h-screen w-full bg-slate-50 overflow-hidden">
+    <div className="flex h-screen bg-slate-50 overflow-hidden font-sans text-slate-900">
+      
+      {/* SIDEBAR */}
+      <aside 
+        className={`
+          relative bg-white h-full shadow-2xl border-r border-slate-100 z-50 no-print
+          transition-all duration-300 ease-in-out flex flex-col
+          ${isSidebarOpen ? 'w-72' : 'w-20'}
+        `}
+      >
+        {/* Floating Toggle Button */}
+        <button
+          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          className="absolute -right-3 top-10 bg-blue-600 text-white p-1 rounded-full shadow-lg hover:bg-blue-700 transition-colors z-50 border-2 border-slate-50"
+        >
+          {isSidebarOpen ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
+        </button>
+
+        {/* Logo Area */}
+        <div className={`flex items-center gap-3 p-6 h-24 border-b border-slate-50 transition-all ${isSidebarOpen ? 'justify-start' : 'justify-center'}`}>
+          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/20 flex-shrink-0">
+             <School className="text-white" size={24} />
+          </div>
+          
+          <div className={`overflow-hidden transition-all duration-300 ${isSidebarOpen ? 'w-auto opacity-100' : 'w-0 opacity-0 hidden'}`}>
+            <h1 className="font-black text-lg text-slate-800 leading-tight whitespace-nowrap">Smart School</h1>
+            <p className="text-xs text-slate-500 font-medium whitespace-nowrap truncate max-w-[150px]">{settings.schoolName}</p>
+          </div>
+        </div>
+
         
-        {/* SIDEBAR */}
-        <aside className="w-72 bg-white border-r border-slate-200 flex flex-col z-20 shadow-xl shadow-slate-200/50 no-print">
-            
-            {/* Header Area */}
-            <div className="p-6 pb-2">
-                
-                {/* App Title Card (Now on Top) */}
-                <div className="flex items-center gap-3 px-2 mb-6">
-                    <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white shadow-lg shadow-blue-600/30">
-                        <School size={18} />
-                    </div>
-                    <div>
-                        <h1 className="font-bold text-slate-900 text-sm leading-tight">Smart School</h1>
-                        <p className="text-[10px] text-slate-500 font-medium truncate max-w-[150px]">{settings.schoolName}</p>
-                    </div>
-                </div>
 
-                {/* User Profile Card (Now Below) */}
-                <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl flex items-center gap-3 mb-6">
-                     <div className="w-10 h-10 rounded-full bg-slate-200 overflow-hidden border border-slate-300 flex-shrink-0">
-                        {currentUser?.photoUrl ? (
-                            <img src={currentUser.photoUrl} className="w-full h-full object-cover" />
-                        ) : (
-                            <div className="w-full h-full flex items-center justify-center text-slate-400">
-                                <UserIcon size={20} />
-                            </div>
-                        )}
-                     </div>
-                     <div className="overflow-hidden">
-                         <h3 className="font-bold text-sm text-slate-900 truncate">{currentUser?.fullName}</h3>
-                         <p className="text-xs text-slate-500 truncate">{currentUser?.title}</p>
-                     </div>
-                </div>
-            </div>
-
-            {/* Navigation */}
-            <nav className="flex-1 px-4 space-y-2 overflow-y-auto">
-                <NavItem view="dashboard" current={currentView} icon={LayoutDashboard} onClick={onNavigate} label={t('dashboard')} />
-                <NavItem view="scan" current={currentView} icon={ScanLine} onClick={onNavigate} label={t('scan')} />
-                <NavItem view="register" current={currentView} icon={UserPlus} onClick={onNavigate} label={t('register')} />
-                <NavItem view="reports" current={currentView} icon={FileBarChart} onClick={onNavigate} label={t('reports')} />
-                <NavItem view="settings" current={currentView} icon={Settings} onClick={onNavigate} label={t('settings')} />
-                
-                {/* Profile Link in Nav */}
+        {/* Menu Items */}
+        <nav className="flex-1 px-3 py-4 space-y-2 overflow-y-auto custom-scrollbar">
+          {menuItems.map((item) => {
+            const isActive = currentView === item.id;
+            return (
+              <div key={item.id} className="relative group">
                 <button
-                    onClick={() => onNavigate('profile')}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium text-sm mt-4
-                    ${currentView === 'profile' 
-                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30' 
-                        : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
-                    }`}
+                  onClick={() => onNavigate(item.id as ViewState)}
+                  className={`
+                    w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 relative overflow-hidden group
+                    ${isActive 
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20' 
+                      : 'text-slate-500 hover:bg-slate-50 hover:text-blue-600'
+                    }
+                    ${!isSidebarOpen && 'justify-center'}
+                  `}
                 >
-                    <UserIcon size={20} />
-                    {t('profile')}
-                </button>
-            </nav>
+                  <item.icon size={22} className={`flex-shrink-0 transition-transform duration-200 ${!isActive && 'group-hover:scale-110'}`} />
+                  
+                  <span className={`font-semibold text-sm whitespace-nowrap transition-all duration-300 ${isSidebarOpen ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 absolute'}`}>
+                    {item.label}
+                  </span>
 
-            {/* Footer / Logout */}
-            <div className="p-4 border-t border-slate-100">
-                <button onClick={logout} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-500 hover:bg-red-50 font-medium text-sm transition-colors">
-                    <LogOut size={20} />
-                    Logout
+                  {/* Active Indicator Dot (Only when collapsed) */}
+                  {!isSidebarOpen && isActive && (
+                    <div className="absolute right-2 w-1.5 h-1.5 rounded-full bg-white shadow-sm" />
+                  )}
                 </button>
-            </div>
-        </aside>
 
-        {/* MAIN CONTENT */}
-        <main className="flex-1 overflow-y-auto overflow-x-hidden relative scroll-smooth">
-            <div className="max-w-7xl mx-auto p-6 md:p-10 min-h-full">
-                {children}
-            </div>
-        </main>
+                {/* Tooltip (Only visible when sidebar is collapsed) */}
+                {!isSidebarOpen && (
+                  <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-2 bg-slate-800 text-white text-xs font-bold rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 whitespace-nowrap shadow-xl z-50">
+                    {item.label}
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 -ml-1 w-2 h-2 bg-slate-800 transform rotate-45" />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </nav>
+
+        {/* Footer / Logout */}
+        <div className="p-4 border-t border-slate-50">
+           <button 
+              onClick={logout}
+              className={`
+              w-full flex items-center gap-3 p-3 rounded-xl text-red-500 hover:bg-red-50 transition-colors
+              ${!isSidebarOpen && 'justify-center'}
+           `}>
+              <LogOut size={20} />
+              <span className={`font-bold text-sm whitespace-nowrap transition-all ${isSidebarOpen ? 'opacity-100' : 'opacity-0 w-0 hidden'}`}>
+                  Logout
+              </span>
+           </button>
+        </div>
+      </aside>
+
+      {/* MAIN CONTENT AREA */}
+      <main className="flex-1 h-full overflow-hidden relative flex flex-col">
+        {/* Top Header */}
+        <header className="h-16 bg-white border-b border-slate-100 flex items-center justify-between px-8 flex-shrink-0">
+             <div className="flex items-center gap-4 text-slate-400">
+                <span className="text-sm font-medium">Academic Year: <b className="text-slate-800">2024-2025</b></span>
+             </div>
+             <div className="flex items-center gap-4">
+                <button 
+                    onClick={() => onNavigate('profile')}
+                    className="w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 transition overflow-hidden"
+                >
+                    {currentUser?.photoUrl ? (
+                         <img src={currentUser.photoUrl} className="w-full h-full object-cover" alt="Profile" />
+                    ) : (
+                        <UserCircle size={20} />
+                    )}
+                </button>
+             </div>
+        </header>
+
+        {/* Scrollable Page Content */}
+        <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar">
+          <div className="max-w-6xl mx-auto h-full">
+             {children}
+          </div>
+        </div>
+      </main>
+
     </div>
   );
 };
