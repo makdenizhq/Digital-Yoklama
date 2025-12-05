@@ -1,3 +1,4 @@
+
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { Camera, RefreshCw, Loader2, Check, X } from 'lucide-react';
 
@@ -218,7 +219,11 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
 
                 // Re-center the box since we changed dimensions
                 const adjX = rawX + (rawW - adjW) / 2;
-                const adjY = rawY + (rawH - adjH) / 2;
+                
+                // Yüksekliğin %15'i kadar yukarı kaydırma payı (Offset)
+                const shiftUpAmount = adjH * 0.1; 
+                // Mevcut merkezleme işleminden bu payı ÇIKARTIYORUZ (-)
+                const adjY = (rawY + (rawH - adjH) / 2) - shiftUpAmount;
 
                 const uiX = 100 - ((adjX + adjW) / videoW * 100); 
                 const uiY = (adjY / videoH) * 100;
