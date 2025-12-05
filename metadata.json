@@ -1,5 +1,5 @@
 {
-  "name": "Smart Attendance",
+  "name": "Smart School",
   "description": "Smart attendance system using QR code and AI powered facial verification.",
   "requestFramePermissions": [
     "camera"

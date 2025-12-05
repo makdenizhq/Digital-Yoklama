@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { School, Lock, User as UserIcon, ArrowRight } from 'lucide-react';
@@ -20,16 +21,23 @@ const Login = () => {
   return (
     <div className="min-h-screen w-full bg-slate-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <div className="text-center mb-10">
-            <div className="inline-flex bg-blue-600 p-5 rounded-2xl shadow-xl shadow-blue-600/20 mb-6">
-                <School size={40} className="text-white" />
+        <div className="text-center mb-8">
+            <div className="flex justify-center mb-6">
+                {settings.schoolLogoUrl ? (
+                    <img 
+                        src={settings.schoolLogoUrl} 
+                        alt={settings.schoolName} 
+                        className="h-24 w-auto object-contain drop-shadow-md"
+                    />
+                ) : (
+                    <div className="bg-blue-600 p-5 rounded-2xl shadow-xl shadow-blue-600/20">
+                        <School size={40} className="text-white" />
+                    </div>
+                )}
             </div>
-            <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-             AttendAI
+            <h2 className="text-2xl font-black text-slate-900 tracking-tight px-4">
+             {settings.schoolName || "Smart School"}
             </h2>
-            <p className="mt-2 text-slate-500 font-medium">
-            {settings.schoolName}
-            </p>
         </div>
 
         <div className="bg-white py-10 px-8 shadow-2xl shadow-slate-200/50 rounded-3xl border border-slate-100">
@@ -76,14 +84,10 @@ const Login = () => {
             )}
 
             <button type="submit" className="w-full flex justify-center items-center gap-2 py-4 px-4 rounded-xl shadow-lg shadow-slate-900/20 text-sm font-bold text-white bg-slate-900 hover:bg-slate-800 transition-all hover:scale-[1.02] active:scale-[0.98]">
-                Sign In to Dashboard <ArrowRight size={18} />
+                Sign In <ArrowRight size={18} />
             </button>
           </form>
         </div>
-        
-        <p className="mt-10 text-center text-xs text-slate-400 uppercase tracking-widest font-bold opacity-60">
-            Secure Facial Verification System
-        </p>
       </div>
     </div>
   );

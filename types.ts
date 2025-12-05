@@ -44,6 +44,7 @@ export interface SchoolSettings {
   language: 'en' | 'tr';
   idFormat: IdGenerationFormat;
   schoolPrefix: string; // e.g. "FTH" for Future Tech High
+  schoolLogoUrl?: string;
 }
 
 export type UserRole = 'admin' | 'manager' | 'teacher';

@@ -121,6 +121,7 @@ const Settings = () => {
                     <input name="schoolName" value={formData.schoolName} onChange={handleChange} className="w-full px-3 py-2 text-sm border rounded-lg" placeholder="School Name"/>
                     <input name="schoolAddress" value={formData.schoolAddress} onChange={handleChange} className="w-full px-3 py-2 text-sm border rounded-lg" placeholder="Address"/>
                     <input name="contactPhone" value={formData.contactPhone} onChange={handleChange} className="w-full px-3 py-2 text-sm border rounded-lg" placeholder="Phone"/>
+                    <input name="schoolLogoUrl" value={formData.schoolLogoUrl || ''} onChange={handleChange} className="w-full px-3 py-2 text-sm border rounded-lg" placeholder="Logo URL (optional)"/>
                 </div>
             </div>
 

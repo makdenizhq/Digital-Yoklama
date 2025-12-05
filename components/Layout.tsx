@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { ViewState } from '../types';
 import { LayoutDashboard, ScanLine, UserPlus, FileBarChart, Settings, School, User as UserIcon, LogOut } from 'lucide-react';
@@ -32,8 +33,21 @@ const Layout: React.FC<LayoutProps> = ({ currentView, onNavigate, children }) =>
         {/* SIDEBAR */}
         <aside className="w-72 bg-white border-r border-slate-200 flex flex-col z-20 shadow-xl shadow-slate-200/50 no-print">
             
-            {/* User Profile Card */}
+            {/* Header Area */}
             <div className="p-6 pb-2">
+                
+                {/* App Title Card (Now on Top) */}
+                <div className="flex items-center gap-3 px-2 mb-6">
+                    <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white shadow-lg shadow-blue-600/30">
+                        <School size={18} />
+                    </div>
+                    <div>
+                        <h1 className="font-bold text-slate-900 text-sm leading-tight">Smart School</h1>
+                        <p className="text-[10px] text-slate-500 font-medium truncate max-w-[150px]">{settings.schoolName}</p>
+                    </div>
+                </div>
+
+                {/* User Profile Card (Now Below) */}
                 <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl flex items-center gap-3 mb-6">
                      <div className="w-10 h-10 rounded-full bg-slate-200 overflow-hidden border border-slate-300 flex-shrink-0">
                         {currentUser?.photoUrl ? (
@@ -48,16 +62,6 @@ const Layout: React.FC<LayoutProps> = ({ currentView, onNavigate, children }) =>
                          <h3 className="font-bold text-sm text-slate-900 truncate">{currentUser?.fullName}</h3>
                          <p className="text-xs text-slate-500 truncate">{currentUser?.title}</p>
                      </div>
-                </div>
-
-                <div className="flex items-center gap-3 px-2 mb-6">
-                    <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white shadow-lg shadow-blue-600/30">
-                        <School size={18} />
-                    </div>
-                    <div>
-                        <h1 className="font-bold text-slate-900 text-sm leading-tight">AttendAI</h1>
-                        <p className="text-[10px] text-slate-500 font-medium truncate max-w-[150px]">{settings.schoolName}</p>
-                    </div>
                 </div>
             </div>
 
