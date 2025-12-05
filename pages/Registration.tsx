@@ -224,7 +224,7 @@ const Registration = () => {
                  <div className="flex-1 min-h-0 relative flex items-center justify-center bg-black p-4">
                     <div className="relative w-full h-full max-w-2xl rounded-2xl overflow-hidden border border-slate-800 shadow-2xl bg-black">
                         <WebcamCapture onCapture={handlePhotoCaptured} mode="registration" className="w-full h-full object-cover" />
-                        <div className="absolute top-8 left-0 right-0 text-center pointer-events-none z-40">
+                        <div className="absolute top-1 left-0 right-0 text-center pointer-events-none z-40">
                             <p className="inline-block bg-black/60 backdrop-blur-md text-white px-6 py-2 rounded-full text-lg font-medium border border-white/10 shadow-lg">
                                 {capturedPhotos.length < 5 ? "Align face in the oval. Hold still." : "All photos captured!"}
                             </p>

@@ -208,10 +208,22 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
                 const videoW = video.videoWidth;
                 const videoH = video.videoHeight;
 
-                const uiX = 100 - ((rawX + rawW) / videoW * 100); 
-                const uiY = (rawY / videoH) * 100;
-                const uiW = (rawW / videoW) * 100;
-                const uiH = (rawH / videoH) * 100;
+                // --- ADJUST BOX SHAPE HERE ---
+                // We want a vertical rectangle/oval, so we narrow the width and increase height slightly
+                const scaleW = 0.65; // Make it 75% of the original width (narrower)
+                const scaleH = 1.5;  // Make it 110% of the original height (taller)
+
+                const adjW = rawW * scaleW;
+                const adjH = rawH * scaleH;
+
+                // Re-center the box since we changed dimensions
+                const adjX = rawX + (rawW - adjW) / 2;
+                const adjY = rawY + (rawH - adjH) / 2;
+
+                const uiX = 100 - ((adjX + adjW) / videoW * 100); 
+                const uiY = (adjY / videoH) * 100;
+                const uiW = (adjW / videoW) * 100;
+                const uiH = (adjH / videoH) * 100;
                 
                 setFaceBox({ x: uiX, y: uiY, w: uiW, h: uiH });
 
@@ -240,8 +252,7 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
                     const faceCY = (rawY + rawH/2) / videoH;
 
                     const centered = Math.abs(faceCX - ovalCW) < 0.1 && Math.abs(faceCY - ovalCH) < 0.1;
-                    // Adjusted for smaller face relative to screen (since oval is smaller)
-                    // Updated logic for narrower oval: Face should be between 15% and 40% of screen width.
+                    // Adjusted logic for narrower oval
                     const sized = (rawW / videoW) > 0.15 && (rawW / videoW) < 0.40;
 
                     const aligned = centered && sized;
@@ -365,10 +376,10 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
       {mode === 'registration' && isActive && isVideoReady && !capturedImage && (
         <div className="absolute inset-0 z-30 pointer-events-none overflow-hidden">
             {/* UPDATED OVAL SHAPE: Vertical Ellipse, smaller width */}
-            <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[30%] h-[55%] rounded-[50%] border-[3px] transition-all duration-300 ${isAligned ? 'border-green-400 bg-green-400/10' : 'border-white/30 border-dashed'}`} />
+            <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[25%] h-[60%] rounded-[50%] border-[3px] transition-all duration-300 ${isAligned ? 'border-green-400 bg-green-400/10' : 'border-white/30 border-dashed'}`} />
             {faceBox && (
                 <div 
-                    className={`absolute border-2 transition-all duration-100 ease-linear ${isSharp ? 'border-green-400' : 'border-red-500/80'}`}
+                    className={`absolute border-2 transition-all duration-100 ease-linear rounded-3xl ${isSharp ? 'border-green-400' : 'border-red-500/80'}`}
                     style={{ left: `${faceBox.x}%`, top: `${faceBox.y}%`, width: `${faceBox.w}%`, height: `${faceBox.h}%` }}
                 />
             )}
