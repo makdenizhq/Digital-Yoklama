@@ -1,8 +1,9 @@
+
 import React, { useState, useRef } from 'react';
 import { useAppContext } from '../context/AppContext';
 import WebcamCapture from '../components/WebcamCapture';
 import { verifyFace } from '../services/geminiService';
-import { CheckCircle, XCircle, Loader2, User } from 'lucide-react';
+import { CheckCircle, XCircle, Loader2, User, ScanFace, QrCode } from 'lucide-react';
 import { Student } from '../types';
 
 type ScanStep = 'idle' | 'scanning_qr' | 'verifying_face' | 'success' | 'failure';
@@ -24,12 +25,14 @@ const Scanner = () => {
     if (student) {
         setIdentifiedStudent(student);
         setStep('verifying_face');
-        setFeedback(t('verifying'));
         
-        // Wait 1 second for user to see name, then trigger capture
+        // Update feedback to tell user to prepare
+        setFeedback("QR Detected! Look at the camera...");
+        
+        // Wait 1.5 seconds (increased from 1s) for user to switch from card to face
         setTimeout(() => {
              setTriggerCapture(true);
-        }, 1000);
+        }, 1500);
     } else {
         setFeedback('Unknown QR Code');
         setTimeout(() => setFeedback(t('qrScanning')), 2000);
@@ -39,6 +42,9 @@ const Scanner = () => {
   const handleFaceCapture = async (imageSrc: string) => {
     setTriggerCapture(false); // Reset trigger
     if (!identifiedStudent) return;
+    
+    // Update feedback to show processing
+    setFeedback(t('verifying'));
     
     try {
         const result = await verifyFace(identifiedStudent.photos, imageSrc);
@@ -77,9 +83,9 @@ const Scanner = () => {
           step === 'failure' ? 'bg-red-600 text-white shadow-red-600/20' : 
           'bg-white border border-slate-100 text-slate-800'}`}>
           <div>
-            <h2 className="text-2xl font-black uppercase tracking-wide">
-                {step === 'scanning_qr' && t('qrReady')}
-                {step === 'verifying_face' && t('verifying')}
+            <h2 className="text-2xl font-black uppercase tracking-wide flex items-center gap-3">
+                {step === 'scanning_qr' && <><QrCode /> {t('qrReady')}</>}
+                {step === 'verifying_face' && <><ScanFace className="animate-pulse"/> {t('verifying')}</>}
                 {step === 'success' && t('verified')}
                 {step === 'failure' && t('failed')}
             </h2>
@@ -94,7 +100,7 @@ const Scanner = () => {
       <div className="flex-1 bg-black rounded-3xl overflow-hidden shadow-2xl relative border-4 border-slate-900 flex flex-col">
           
           {/* Camera fills available space */}
-          <div className="flex-1 relative">
+          <div className="flex-1 relative group">
             <WebcamCapture 
                 mode="scanner"
                 onQrDetected={handleQrDetected}
@@ -103,6 +109,31 @@ const Scanner = () => {
                 triggerCapture={triggerCapture} 
                 className="w-full h-full object-cover"
             />
+            
+            {/* Visual Guide Overlay */}
+            <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                {step === 'scanning_qr' && (
+                    <div className="w-64 h-64 border-4 border-white/30 rounded-3xl relative animate-pulse">
+                        <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-blue-500 -mt-1 -ml-1 rounded-tl-xl"></div>
+                        <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-blue-500 -mt-1 -mr-1 rounded-tr-xl"></div>
+                        <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-blue-500 -mb-1 -ml-1 rounded-bl-xl"></div>
+                        <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-blue-500 -mb-1 -mr-1 rounded-br-xl"></div>
+                        <div className="absolute inset-0 flex items-center justify-center text-white/80 font-bold bg-black/20 backdrop-blur-[2px] rounded-2xl">
+                            SCAN QR
+                        </div>
+                    </div>
+                )}
+                
+                {step === 'verifying_face' && (
+                     <div className="w-[30%] h-[50%] border-4 border-green-500/50 rounded-[50%] relative animate-pulse shadow-[0_0_50px_rgba(34,197,94,0.3)]">
+                        <div className="absolute -top-12 w-full text-center">
+                            <span className="bg-black/60 text-white px-4 py-1 rounded-full text-sm font-bold backdrop-blur-md">
+                                Look at Camera
+                            </span>
+                        </div>
+                     </div>
+                )}
+            </div>
           </div>
 
           {/* Identification Overlay (Bottom Sheet style) */}
