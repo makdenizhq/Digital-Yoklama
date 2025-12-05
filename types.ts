@@ -1,3 +1,4 @@
+
 export interface Guardian {
   name: string;
   relation: string;
@@ -34,11 +35,15 @@ export interface VerificationResult {
   reason: string;
 }
 
+export type IdGenerationFormat = 'standard' | 'school_prefix' | 'grade_prefix';
+
 export interface SchoolSettings {
   schoolName: string;
   schoolAddress: string;
   contactPhone: string;
   language: 'en' | 'tr';
+  idFormat: IdGenerationFormat;
+  schoolPrefix: string; // e.g. "FTH" for Future Tech High
 }
 
 export type UserRole = 'admin' | 'manager' | 'teacher';

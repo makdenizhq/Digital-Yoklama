@@ -18,84 +18,71 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="flex justify-center">
-            <div className="bg-blue-600 p-3 rounded-2xl shadow-xl shadow-blue-600/20">
+    <div className="min-h-screen w-full bg-slate-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-10">
+            <div className="inline-flex bg-blue-600 p-5 rounded-2xl shadow-xl shadow-blue-600/20 mb-6">
                 <School size={40} className="text-white" />
             </div>
+            <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">
+             AttendAI
+            </h2>
+            <p className="mt-2 text-slate-500 font-medium">
+            {settings.schoolName}
+            </p>
         </div>
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-slate-900 tracking-tight">
-          Sign in to AttendAI
-        </h2>
-        <p className="mt-2 text-center text-sm text-slate-600">
-          {settings.schoolName}
-        </p>
-      </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md animate-in fade-in slide-in-from-bottom-8 duration-500">
-        <div className="bg-white py-8 px-4 shadow-xl shadow-slate-200/50 sm:rounded-2xl sm:px-10 border border-slate-100">
+        <div className="bg-white py-10 px-8 shadow-2xl shadow-slate-200/50 rounded-3xl border border-slate-100">
           <form className="space-y-6" onSubmit={handleLogin}>
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-slate-700">
-                Username
-              </label>
-              <div className="mt-1 relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <UserIcon size={18} className="text-slate-400" />
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Username</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <UserIcon size={20} className="text-slate-400" />
                 </div>
                 <input
-                  id="username"
-                  name="username"
                   type="text"
                   required
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-slate-300 rounded-xl py-3"
+                  className="block w-full pl-11 border-slate-200 rounded-xl py-3.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                   placeholder="admin"
                 />
               </div>
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-slate-700">
-                Password
-              </label>
-              <div className="mt-1 relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock size={18} className="text-slate-400" />
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Password</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <Lock size={20} className="text-slate-400" />
                 </div>
                 <input
-                  id="password"
-                  name="password"
                   type="password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-slate-300 rounded-xl py-3"
-                  placeholder="password"
+                  className="block w-full pl-11 border-slate-200 rounded-xl py-3.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                  placeholder="••••••"
                 />
               </div>
             </div>
 
             {error && (
-                <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg border border-red-100 flex items-center justify-center">
+                <div className="bg-red-50 text-red-600 text-sm font-bold p-4 rounded-xl text-center flex items-center justify-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-600 inline-block"></span>
                     {error}
                 </div>
             )}
 
-            <div>
-              <button
-                type="submit"
-                className="w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-slate-900 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-900 transition-all transform active:scale-95"
-              >
-                Sign in <ArrowRight size={16} />
-              </button>
-            </div>
+            <button type="submit" className="w-full flex justify-center items-center gap-2 py-4 px-4 rounded-xl shadow-lg shadow-slate-900/20 text-sm font-bold text-white bg-slate-900 hover:bg-slate-800 transition-all hover:scale-[1.02] active:scale-[0.98]">
+                Sign In to Dashboard <ArrowRight size={18} />
+            </button>
           </form>
         </div>
-        <p className="mt-6 text-center text-xs text-slate-400">
-            Protected by secure facial verification protocols.
+        
+        <p className="mt-10 text-center text-xs text-slate-400 uppercase tracking-widest font-bold opacity-60">
+            Secure Facial Verification System
         </p>
       </div>
     </div>

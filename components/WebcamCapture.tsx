@@ -3,18 +3,20 @@ import { Camera, RefreshCw, Loader2, Check, X } from 'lucide-react';
 
 interface WebcamCaptureProps {
   onCapture: (imageSrc: string) => void;
-  onQrDetected?: (code: string) => void; // New prop for QR
+  onQrDetected?: (code: string) => void; 
   label?: string;
   autoStart?: boolean;
-  mode?: 'simple' | 'registration' | 'scanner'; // Added 'scanner' mode
-  pauseScan?: boolean; // Prop to pause scanning
+  mode?: 'simple' | 'registration' | 'scanner';
+  pauseScan?: boolean; 
+  triggerCapture?: boolean; // New prop to trigger capture externally
+  className?: string;
 }
 
 declare global {
   interface Window {
     blazeface: any;
     tf: any;
-    jsQR: any; // Add jsQR type
+    jsQR: any; 
   }
 }
 
@@ -24,7 +26,9 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
     label = "Capture Photo", 
     autoStart = true,
     mode = 'simple',
-    pauseScan = false
+    pauseScan = false,
+    triggerCapture = false,
+    className = ''
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -68,13 +72,19 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
       setIsVideoReady(false);
       setCapturedImage(null);
       
-      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
-            facingMode: mode === 'registration' ? 'user' : 'environment', // Use back camera for scanner
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-        } 
-      });
+      let mediaStream;
+      try {
+          mediaStream = await navigator.mediaDevices.getUserMedia({ 
+            video: { 
+                facingMode: mode === 'registration' ? 'user' : 'environment',
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+            } 
+          });
+      } catch (err) {
+          console.warn("High-spec camera request failed, retrying with defaults...", err);
+          mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
+      }
       
       streamRef.current = mediaStream;
       setIsActive(true);
@@ -84,13 +94,12 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
       }
     } catch (err) {
       console.error("Error accessing camera:", err);
-      setError("Unable to access camera. Please check permissions.");
+      setError("Unable to access camera. Please check permissions or hardware.");
       setIsActive(false);
       setIsVideoReady(false);
     }
   }, [stopCamera, mode]);
 
-  // Load Face Model only for Registration
   useEffect(() => {
     if (mode === 'registration' && !modelRef.current && window.blazeface) {
         window.blazeface.load().then((model: any) => {
@@ -109,7 +118,6 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         
-        // Only mirror for registration/selfie mode
         if (mode === 'registration') {
             context.translate(canvas.width, 0);
             context.scale(-1, 1);
@@ -122,7 +130,17 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
     return null;
   }, [isVideoReady, mode]);
 
-  // Combined Analysis Loop (Face + QR)
+  // Handle external trigger for capture (e.g. from Scanner)
+  useEffect(() => {
+    if (triggerCapture && isVideoReady) {
+        const img = captureFrame();
+        if (img) {
+            onCapture(img);
+        }
+    }
+  }, [triggerCapture, isVideoReady, captureFrame, onCapture]);
+
+  // Analysis Loop
   useEffect(() => {
     if (!isVideoReady || capturedImage || pauseScan) {
         if (analysisRef.current) cancelAnimationFrame(analysisRef.current);
@@ -150,7 +168,6 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
 
         // --- QR SCANNER LOGIC ---
         if (mode === 'scanner' && window.jsQR && onQrDetected) {
-             // Draw current frame to canvas for analysis
              if (video.videoWidth > 0) {
                  canvas.width = video.videoWidth;
                  canvas.height = video.videoHeight;
@@ -162,8 +179,8 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
                      });
 
                      if (code && code.data) {
-                         onQrDetected(code.data); // Trigger parent
-                         return; // Stop analyzing this frame
+                         onQrDetected(code.data); 
+                         return; 
                      }
                  }
              }
@@ -171,7 +188,6 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
 
         // --- REGISTRATION LOGIC ---
         if (mode === 'registration' && modelRef.current) {
-            // ... (Existing Face Detection & Sharpness Logic) ...
              let predictions = [];
             try {
                 predictions = await modelRef.current.estimateFaces(video, false);
@@ -224,7 +240,9 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
                     const faceCY = (rawY + rawH/2) / videoH;
 
                     const centered = Math.abs(faceCX - ovalCW) < 0.1 && Math.abs(faceCY - ovalCH) < 0.1;
-                    const sized = (rawW / videoW) > 0.15 && (rawW / videoW) < 0.55;
+                    // Adjusted for smaller face relative to screen (since oval is smaller)
+                    // Updated logic for narrower oval: Face should be between 15% and 40% of screen width.
+                    const sized = (rawW / videoW) > 0.15 && (rawW / videoW) < 0.40;
 
                     const aligned = centered && sized;
                     setIsAligned(aligned);
@@ -257,7 +275,7 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
     return () => {
         if (analysisRef.current) cancelAnimationFrame(analysisRef.current);
     };
-  }, [isVideoReady, mode, capturedImage, pauseScan, captureFrame, onQrDetected]);
+  }, [isVideoReady, mode, capturedImage, pauseScan, captureFrame, onQrDetected, triggerCapture]);
 
 
   const handleVideoPlaying = () => {
@@ -273,19 +291,8 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
                      }
                  }, 200);
              }
-         }, 1000); // 1s warm-up
+         }, 1000); 
      }
-  };
-
-  const handleManualCapture = () => {
-      const img = captureFrame();
-      if (img) {
-          if (mode === 'registration') {
-              setCapturedImage(img);
-          } else {
-              onCapture(img);
-          }
-      }
   };
 
   const handleConfirm = () => {
@@ -311,12 +318,10 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
   }, [autoStart, startCamera, stopCamera]);
 
   return (
-    <div className={`relative w-full h-full bg-black rounded-xl overflow-hidden shadow-2xl isolate group ${mode === 'scanner' ? 'aspect-auto' : 'aspect-[4/3]'}`}>
+    <div className={`relative w-full h-full bg-black rounded-xl overflow-hidden shadow-2xl isolate group ${mode === 'scanner' ? 'aspect-auto' : 'aspect-[4/3]'} ${className}`}>
       
-      {/* Background */}
       <div className="absolute inset-0 bg-black z-0"></div>
 
-      {/* Loading / Error States */}
       {isActive && !isVideoReady && !error && (
          <div className="absolute inset-0 flex flex-col items-center justify-center z-20 text-white/80 bg-black backdrop-blur-sm">
             <Loader2 className="w-10 h-10 animate-spin mb-3 text-blue-500" />
@@ -332,19 +337,17 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
         </div>
       )}
 
-      {/* Video Element - Full Cover for Scanner */}
       <video
         ref={videoRef}
         autoPlay
         playsInline
         muted
         onPlaying={handleVideoPlaying} 
-        className={`relative z-10 w-full h-full object-cover transition-opacity duration-500 bg-black ${
+        className={`relative z-10 w-full h-full object-cover transition-opacity duration-500 bg-black object-contain ${
             (isActive && isVideoReady && !capturedImage) ? 'opacity-100' : 'opacity-0 invisible'
-        } ${mode === 'registration' ? 'transform scale-x-[-1]' : ''}`} // Only mirror for registration
+        } ${mode === 'registration' ? 'transform scale-x-[-1]' : ''}`} 
       />
 
-      {/* Registration Preview Overlay */}
       {capturedImage && mode === 'registration' && (
           <div className="absolute inset-0 z-40 bg-black flex items-center justify-center animate-in fade-in duration-300">
               <img src={capturedImage} alt="Captured" className="absolute inset-0 w-full h-full object-cover" />
@@ -359,10 +362,10 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
           </div>
       )}
 
-      {/* Registration Guides */}
       {mode === 'registration' && isActive && isVideoReady && !capturedImage && (
         <div className="absolute inset-0 z-30 pointer-events-none overflow-hidden">
-            <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[40%] h-[60%] rounded-[50%] border-[3px] transition-all duration-300 ${isAligned ? 'border-green-400 bg-green-400/10' : 'border-white/30 border-dashed'}`} />
+            {/* UPDATED OVAL SHAPE: Vertical Ellipse, smaller width */}
+            <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[30%] h-[55%] rounded-[50%] border-[3px] transition-all duration-300 ${isAligned ? 'border-green-400 bg-green-400/10' : 'border-white/30 border-dashed'}`} />
             {faceBox && (
                 <div 
                     className={`absolute border-2 transition-all duration-100 ease-linear ${isSharp ? 'border-green-400' : 'border-red-500/80'}`}
@@ -374,7 +377,6 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
 
       <canvas ref={canvasRef} className="hidden" />
 
-      {/* Only show refresh button if active */}
        {isActive && (
         <button 
           onClick={() => { stopCamera(); setTimeout(startCamera, 100); }}

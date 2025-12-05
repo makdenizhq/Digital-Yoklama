@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Student, AttendanceRecord, SchoolSettings, User, AuditLog } from '../types';
 
@@ -22,6 +23,7 @@ interface AppContextType {
   markAttendance: (studentId: string, method: 'face_match' | 'manual_override', confidence?: number, liveImage?: string) => void;
   getStudent: (id: string) => Student | undefined;
   updateSettings: (settings: SchoolSettings) => void;
+  generateStudentId: (gradeLevel?: string) => string;
   t: (key: string) => string;
 }
 
@@ -29,9 +31,11 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 const INITIAL_SETTINGS: SchoolSettings = {
   schoolName: 'Future Tech High School',
-  schoolAddress: '123 Innovation Blvd, Tech City',
+  schoolAddress: '123 Innovation Blvd',
   contactPhone: '+1 (555) 0123-4567',
-  language: 'en'
+  language: 'en',
+  idFormat: 'school_prefix',
+  schoolPrefix: 'FTH'
 };
 
 const DEFAULT_ADMIN: User = {
@@ -45,78 +49,89 @@ const DEFAULT_ADMIN: User = {
   photoUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80'
 };
 
+const SIMPLE_ADMIN: User = {
+  id: '999',
+  username: 'a',
+  password: 'a',
+  fullName: 'Test Admin',
+  email: 'a@test.com',
+  title: 'System Admin',
+  role: 'admin',
+  photoUrl: 'https://ui-avatars.com/api/?name=Test+Admin&background=0D8ABC&color=fff'
+};
+
 const DICTIONARY: Record<string, Record<string, string>> = {
   en: {
     dashboard: "Dashboard",
-    scan: "Scan Attendance",
-    register: "Register Student",
+    scan: "Scan",
+    register: "Register",
     reports: "Reports",
     settings: "Settings",
-    profile: "My Profile",
-    totalStudents: "Total Students",
-    presentToday: "Present Today",
+    profile: "Profile",
+    totalStudents: "Students",
+    presentToday: "Present",
     absent: "Absent",
-    attendanceRate: "Attendance Rate",
-    recentActivity: "Recent Activity",
-    online: "Online System",
-    save: "Save Changes",
-    schoolInfo: "School Information",
-    personalInfo: "Personal Information",
-    academicInfo: "Academic Information",
-    guardianInfo: "Guardian Information",
+    attendanceRate: "Rate",
+    recentActivity: "Recent",
+    online: "Online",
+    save: "Save",
+    schoolInfo: "School Info",
+    personalInfo: "Personal Info",
+    academicInfo: "Academic Info",
+    guardianInfo: "Guardian Info",
     firstName: "First Name",
     lastName: "Last Name",
     studentId: "Student ID",
     grade: "Grade",
     section: "Section",
-    teacher: "Class Teacher",
-    parentName: "Parent Name",
+    teacher: "Teacher",
+    parentName: "Parent",
     phone: "Phone",
     address: "Address",
-    capturePhotos: "Capture Photos",
-    printId: "Print ID Card",
-    qrReady: "Ready to Scan",
-    qrScanning: "Scanning QR...",
-    verifying: "Verifying Face...",
+    capturePhotos: "Capture",
+    printId: "Print ID",
+    qrReady: "Ready",
+    qrScanning: "Scanning...",
+    verifying: "Verifying...",
     verified: "Verified",
     failed: "Failed",
     manualId: "Manual Entry"
   },
   tr: {
-    dashboard: "Kontrol Paneli",
-    scan: "Yoklama Al",
-    register: "Öğrenci Kayıt",
-    reports: "Raporlar",
+    dashboard: "Panel",
+    scan: "Tara",
+    register: "Kayıt",
+    reports: "Rapor",
     settings: "Ayarlar",
-    profile: "Profilim",
-    totalStudents: "Toplam Öğrenci",
-    presentToday: "Bugün Gelenler",
-    absent: "Gelmeyenler",
-    attendanceRate: "Katılım Oranı",
-    recentActivity: "Son Hareketler",
-    online: "Sistem Çevrimiçi",
-    save: "Değişiklikleri Kaydet",
+    profile: "Profil",
+    totalStudents: "Öğrenci",
+    presentToday: "Gelen",
+    absent: "Gelmeyen",
+    attendanceRate: "Oran",
+    recentActivity: "Hareketler",
+    online: "Çevrimiçi",
+    save: "Kaydet",
     schoolInfo: "Okul Bilgileri",
-    personalInfo: "Kişisel Bilgiler",
-    academicInfo: "Akademik Bilgiler",
-    guardianInfo: "Veli Bilgileri",
+    personalInfo: "Kişisel",
+    academicInfo: "Akademik",
+    guardianInfo: "Veli",
     firstName: "Ad",
     lastName: "Soyad",
-    studentId: "Öğrenci No",
+    studentId: "No",
     grade: "Sınıf",
     section: "Şube",
-    teacher: "Sınıf Öğretmeni",
-    parentName: "Veli Adı",
+    teacher: "Öğretmen",
+    parentName: "Veli",
     phone: "Telefon",
     address: "Adres",
-    capturePhotos: "Fotoğraf Çek",
-    printId: "Kimlik Kartı Yazdır",
-    qrReady: "Taramaya Hazır",
-    qrScanning: "QR Okunuyor...",
-    verifying: "Yüz Doğrulanıyor...",
+    capturePhotos: "Foto Çek",
+    printId: "Kart Yazdır",
+    qrReady: "Hazır",
+    qrScanning: "Okunuyor...",
+    verifying: "Doğrulanıyor...",
     verified: "Doğrulandı",
     failed: "Başarısız",
-    manualId: "Manuel Giriş"
+    manualId: "Manuel"
   }
 };
 
@@ -129,14 +144,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const [users, setUsers] = useState<User[]>(() => {
     const saved = localStorage.getItem('attendai_users');
-    // Force default admin if empty, or ensures admin exists. 
-    // In a real app, this logic would be server-side database seeding.
     const parsed = saved ? JSON.parse(saved) : [];
-    if (parsed.length === 0) return [DEFAULT_ADMIN];
-    // Check if our specific admin exists, if not, add/update him (for dev convenience)
-    const adminExists = parsed.find((u: User) => u.username === DEFAULT_ADMIN.username);
-    if (!adminExists) return [...parsed, DEFAULT_ADMIN];
-    return parsed;
+    const defaults = [DEFAULT_ADMIN, SIMPLE_ADMIN];
+    const merged = [...parsed];
+    defaults.forEach(d => {
+        if (!merged.find(u => u.username === d.username)) {
+            merged.push(d);
+        }
+    });
+    return merged;
   });
 
   const [logs, setLogs] = useState<AuditLog[]>(() => {
@@ -146,13 +162,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const [settings, setSettings] = useState<SchoolSettings>(() => {
     const saved = localStorage.getItem('attendai_settings');
-    return saved ? JSON.parse(saved) : INITIAL_SETTINGS;
+    // Migration for new settings if they don't exist
+    const parsed = saved ? JSON.parse(saved) : INITIAL_SETTINGS;
+    return { ...INITIAL_SETTINGS, ...parsed };
   });
 
   const [students, setStudents] = useState<Student[]>(() => {
     const saved = localStorage.getItem('attendai_students');
     const parsed = saved ? JSON.parse(saved) : [];
-    // Migration logic
     return parsed.map((s: any) => ({
       ...s,
       firstName: s.firstName || s.name?.split(' ')[0] || '',
@@ -196,7 +213,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const user = users.find(u => u.username === username && u.password === password);
     if (user) {
       setCurrentUser(user);
-      // Direct log push to avoid closure stale state issue if we used logAction immediately
       const loginLog: AuditLog = {
           id: Date.now().toString(),
           userId: user.id,
@@ -284,6 +300,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     logAction("UPDATE_SETTINGS", "Updated system settings");
   };
 
+  const generateStudentId = (gradeLevel: string = '10') => {
+      const year = new Date().getFullYear().toString().slice(-2); // "24"
+      const random4 = Math.floor(1000 + Math.random() * 9000);
+      
+      switch (settings.idFormat) {
+          case 'school_prefix':
+              return `${settings.schoolPrefix || 'SCH'}${year}${random4}`;
+          case 'grade_prefix':
+              return `${gradeLevel}${year}${random4}`;
+          case 'standard':
+          default:
+              return `20${year}${random4}`;
+      }
+  };
+
   const t = (key: string) => {
     const lang = settings.language;
     return DICTIONARY[lang]?.[key] || key;
@@ -293,7 +324,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     <AppContext.Provider value={{ 
       currentUser, users, login, logout, updateUser, addUser, deleteUser, logs,
       students, attendance, settings, 
-      addStudent, markAttendance, getStudent, updateSettings, t 
+      addStudent, markAttendance, getStudent, updateSettings, generateStudentId, t 
     }}>
       {children}
     </AppContext.Provider>
