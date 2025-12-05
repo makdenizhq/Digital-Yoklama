@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { ViewState } from '../types';
 import { 
@@ -58,17 +57,20 @@ const Layout: React.FC<LayoutProps> = ({ currentView, onNavigate, children }) =>
 
         {/* Logo Area */}
         <div className={`flex items-center gap-3 p-6 h-24 border-b border-slate-50 transition-all ${isSidebarOpen ? 'justify-start' : 'justify-center'}`}>
-          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/20 flex-shrink-0">
-             <School className="text-white" size={24} />
+          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/20 flex-shrink-0 overflow-hidden">
+             {settings.schoolLogoUrl ? (
+                 <img src={settings.schoolLogoUrl} alt="Logo" className="w-full h-full object-cover" />
+             ) : (
+                 <School className="text-white" size={24} />
+             )}
           </div>
           
           <div className={`overflow-hidden transition-all duration-300 ${isSidebarOpen ? 'w-auto opacity-100' : 'w-0 opacity-0 hidden'}`}>
-            <h1 className="font-black text-lg text-slate-800 leading-tight whitespace-nowrap">Smart School</h1>
-            <p className="text-xs text-slate-500 font-medium whitespace-nowrap truncate max-w-[150px]">{settings.schoolName}</p>
+            <h1 className="font-black text-lg text-slate-800 leading-tight break-words" title={settings.schoolName}>
+                {settings.schoolName}
+            </h1>
           </div>
-        </div>
-
-        
+        </div>        
 
         {/* Menu Items */}
         <nav className="flex-1 px-3 py-4 space-y-2 overflow-y-auto custom-scrollbar">
@@ -151,11 +153,10 @@ const Layout: React.FC<LayoutProps> = ({ currentView, onNavigate, children }) =>
         {/* Scrollable Page Content */}
         <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar">
           <div className="max-w-6xl mx-auto h-full">
-             {children}
+            {children}
           </div>
         </div>
       </main>
-
     </div>
   );
 };

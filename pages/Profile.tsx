@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { User, Save } from 'lucide-react';
+import ImageUploader from '../components/ImageUploader';
 
 const Profile = () => {
   const { currentUser, updateUser, t } = useAppContext();
@@ -46,13 +47,18 @@ const Profile = () => {
       </div>
 
       <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-          <div className="flex flex-col items-center mb-6">
-              <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-white shadow-lg bg-slate-200 mb-3">
-                  <img src={formData.photoUrl || 'https://via.placeholder.com/150'} className="w-full h-full object-cover" />
-              </div>
-          </div>
+          
+          <form onSubmit={handleSubmit} className="space-y-4 max-w-lg">
+              
+              <ImageUploader 
+                  label="Profile Photo"
+                  image={formData.photoUrl}
+                  onImageChange={(base64) => setFormData({...formData, photoUrl: base64})}
+                  onRemove={() => setFormData({...formData, photoUrl: ''})}
+                  isCircular={true}
+                  className="mb-6"
+              />
 
-          <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Full Name</label>
                   <input 
@@ -69,15 +75,6 @@ const Profile = () => {
                     value={formData.title} 
                     onChange={(e) => setFormData({...formData, title: e.target.value})} 
                     className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm"
-                  />
-              </div>
-              <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Photo URL</label>
-                  <input 
-                    type="url"
-                    value={formData.photoUrl} 
-                    onChange={(e) => setFormData({...formData, photoUrl: e.target.value})} 
-                    className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-xs font-mono"
                   />
               </div>
               
