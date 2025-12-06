@@ -1,9 +1,8 @@
-
 import React, { useState, useRef } from 'react';
 import { useAppContext } from '../context/AppContext';
 import WebcamCapture from '../components/WebcamCapture';
 import { verifyFace } from '../services/geminiService';
-import { CheckCircle, XCircle, Loader2, User, ScanFace, QrCode } from 'lucide-react';
+import { CheckCircle, XCircle, Loader2, User, ScanFace, QrCode, RefreshCcw, ShieldAlert } from 'lucide-react';
 import { Student } from '../types';
 
 type ScanStep = 'idle' | 'scanning_qr' | 'verifying_face' | 'success' | 'failure';
@@ -15,6 +14,10 @@ const Scanner = () => {
   const [feedback, setFeedback] = useState<string>(t('qrScanning'));
   const [matchedPhoto, setMatchedPhoto] = useState<string | null>(null);
   
+  // Retry Logic
+  const [retryCount, setRetryCount] = useState(0);
+  const MAX_RETRIES = 3;
+  
   // Use state to trigger capture in WebcamCapture
   const [triggerCapture, setTriggerCapture] = useState(false);
 
@@ -25,11 +28,11 @@ const Scanner = () => {
     if (student) {
         setIdentifiedStudent(student);
         setStep('verifying_face');
+        setRetryCount(0); // Reset retries on new QR scan
         
-        // Update feedback to tell user to prepare
         setFeedback("QR Detected! Look at the camera...");
         
-        // Wait 1.5 seconds (increased from 1s) for user to switch from card to face
+        // Wait 1.5 seconds for user to switch
         setTimeout(() => {
              setTriggerCapture(true);
         }, 1500);
@@ -43,7 +46,6 @@ const Scanner = () => {
     setTriggerCapture(false); // Reset trigger
     if (!identifiedStudent) return;
     
-    // Update feedback to show processing
     setFeedback(t('verifying'));
     
     try {
@@ -53,12 +55,20 @@ const Scanner = () => {
             setStep('success');
             setFeedback(t('verified'));
             setMatchedPhoto(identifiedStudent.photos[0]); 
+            setRetryCount(0);
             markAttendance(identifiedStudent.id, 'face_match', result.confidence, imageSrc);
             setTimeout(() => resetScanner(), 3000); 
         } else {
+            // FAILURE LOGIC
+            const newCount = retryCount + 1;
+            setRetryCount(newCount);
             setStep('failure');
-            setFeedback(result.reason || t('failed'));
-            setTimeout(() => resetScanner(), 3000);
+            
+            if (newCount >= MAX_RETRIES) {
+                setFeedback("Verification Denied. Please contact administration.");
+            } else {
+                setFeedback(`No match. (${newCount}/${MAX_RETRIES})`);
+            }
         }
     } catch (err) {
         setStep('failure');
@@ -67,12 +77,29 @@ const Scanner = () => {
     }
   };
 
+  const handleRetry = () => {
+      if (retryCount >= MAX_RETRIES) {
+          // If max retries reached, only allow going back to start
+          resetScanner();
+          return;
+      }
+      
+      // Allow retry
+      setStep('verifying_face');
+      setFeedback("Align your face...");
+      // Wait 1s then capture
+      setTimeout(() => {
+          setTriggerCapture(true);
+      }, 1000);
+  };
+
   const resetScanner = () => {
       setStep('scanning_qr');
       setIdentifiedStudent(null);
       setMatchedPhoto(null);
       setFeedback(t('qrScanning'));
       setTriggerCapture(false);
+      setRetryCount(0);
   };
 
   return (
@@ -108,7 +135,7 @@ const Scanner = () => {
                 pauseScan={step !== 'scanning_qr'}
                 triggerCapture={triggerCapture} 
                 className="w-full h-full object-cover"
-                objectDetection={step === 'verifying_face'} // Enable Object Detection when verifying face
+                objectDetection={step === 'verifying_face'} 
             />
             
             {/* Visual Guide Overlay */}
@@ -135,6 +162,46 @@ const Scanner = () => {
                      </div>
                 )}
             </div>
+
+            {/* FAILURE OVERLAY */}
+            {step === 'failure' && (
+                <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-8 animate-in fade-in duration-200">
+                    <div className="text-center max-w-md">
+                        {retryCount >= MAX_RETRIES ? (
+                            // MAX RETRIES REACHED
+                            <div className="bg-red-900/50 p-8 rounded-3xl border border-red-500/50">
+                                <ShieldAlert size={64} className="text-red-500 mx-auto mb-4" />
+                                <h3 className="text-2xl font-black text-white mb-2">ACCESS DENIED</h3>
+                                <p className="text-red-200 mb-6 font-medium">Verification failed {MAX_RETRIES} times.</p>
+                                <div className="bg-red-950 p-4 rounded-xl border border-red-900 mb-6">
+                                    <p className="text-red-400 font-bold text-sm uppercase tracking-wide">Please Contact Administration</p>
+                                </div>
+                                <button 
+                                    onClick={resetScanner} 
+                                    className="bg-white text-red-900 px-8 py-3 rounded-xl font-bold hover:bg-red-50 transition pointer-events-auto"
+                                >
+                                    Back to Scanning
+                                </button>
+                            </div>
+                        ) : (
+                            // RETRY ALLOWED
+                            <div className="bg-red-600 p-8 rounded-3xl shadow-2xl pointer-events-auto">
+                                <XCircle size={64} className="text-white mx-auto mb-4" />
+                                <h3 className="text-2xl font-black text-white mb-2">NO MATCH FOUND</h3>
+                                <p className="text-red-100 mb-8 font-medium">
+                                    The face does not match the record for <b>{identifiedStudent?.firstName}</b>.
+                                </p>
+                                <button 
+                                    onClick={handleRetry} 
+                                    className="w-full bg-white text-red-600 px-8 py-4 rounded-xl font-bold hover:bg-red-50 transition flex items-center justify-center gap-3 text-lg"
+                                >
+                                    <RefreshCcw size={20}/> Try Again ({retryCount}/{MAX_RETRIES})
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
             
             {/* Object Detection Flash/Visuals */}
             {step === 'verifying_face' && (
@@ -147,7 +214,7 @@ const Scanner = () => {
           </div>
 
           {/* Identification Overlay (Bottom Sheet style) */}
-          {identifiedStudent && (
+          {identifiedStudent && step !== 'failure' && (
               <div className="absolute bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md p-6 border-t border-white/20 animate-in slide-in-from-bottom duration-300 z-20">
                    <div className="flex items-center gap-6 max-w-3xl mx-auto">
                         {step === 'success' && matchedPhoto ? (

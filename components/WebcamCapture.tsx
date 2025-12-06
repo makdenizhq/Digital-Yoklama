@@ -135,7 +135,8 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         
-        if (mode === 'registration') {
+        // Mirror the capture if in registration OR scanner mode
+        if (mode === 'registration' || mode === 'scanner') {
             context.translate(canvas.width, 0);
             context.scale(-1, 1);
         }
@@ -383,22 +384,22 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
         onPlaying={handleVideoPlaying} 
         className={`relative z-10 w-full h-full transition-opacity duration-500 bg-black object-contain ${
             (isActive && isVideoReady && !capturedImage) ? 'opacity-100' : 'opacity-0 invisible'
-        } ${mode === 'registration' ? 'transform scale-x-[-1]' : ''}`} 
+        } ${/* Mirror logic for both Registration AND Scanner */ (mode === 'registration' || mode === 'scanner') ? 'transform scale-x-[-1]' : ''}`} 
       />
 
       {/* --- OBJECT DETECTION OVERLAY (SCANNER MODE) --- */}
       {mode === 'scanner' && objectDetection && isActive && isVideoReady && (
         <div className="absolute inset-0 z-40 pointer-events-none">
             {detectedObjects.map((obj, i) => {
-                // Calculate position relative to the video element inside object-contain
-                // Note: Simplified positioning. For perfect object-contain mapping, more complex math is needed.
-                // Assuming video fills container for this demo or close enough.
                 const vid = videoRef.current;
                 if(!vid) return null;
                 
-                // COCO-SSD returns [x, y, width, height]
-                // We need to map this to percentage
-                const x = (obj.bbox[0] / vid.videoWidth) * 100;
+                // Flip X coordinate if mirroring is enabled
+                let xPercent = (obj.bbox[0] / vid.videoWidth) * 100;
+                if (mode === 'scanner') {
+                    xPercent = 100 - xPercent - ((obj.bbox[2] / vid.videoWidth) * 100);
+                }
+
                 const y = (obj.bbox[1] / vid.videoHeight) * 100;
                 const w = (obj.bbox[2] / vid.videoWidth) * 100;
                 const h = (obj.bbox[3] / vid.videoHeight) * 100;
@@ -408,7 +409,7 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
 
                 return (
                     <div key={i} className={`absolute border-2 ${color} ${bg}`} style={{
-                        left: `${x}%`, top: `${y}%`, width: `${w}%`, height: `${h}%`
+                        left: `${xPercent}%`, top: `${y}%`, width: `${w}%`, height: `${h}%`
                     }}>
                         <span className={`absolute -top-6 left-0 px-2 py-0.5 text-xs font-bold bg-black/70 ${color.split(' ')[1]} rounded`}>
                             {obj.class} {Math.round(obj.score * 100)}%
@@ -419,6 +420,7 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
         </div>
       )}
 
+      {/* Rest of the component (Registration Overlay, etc) remains the same */}
       {capturedImage && mode === 'registration' && (
           <div className="absolute inset-0 z-40 bg-black flex items-center justify-center animate-in fade-in duration-300">
               <img src={capturedImage} alt="Captured" className="absolute inset-0 w-full h-full object-cover" />

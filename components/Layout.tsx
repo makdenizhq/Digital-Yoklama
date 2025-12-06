@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { ViewState } from '../types';
 import { 
@@ -11,7 +12,7 @@ import {
   ChevronRight,
   LogOut,
   School,
-  User as UserIcon
+  Users
 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 
@@ -32,9 +33,23 @@ const Layout: React.FC<LayoutProps> = ({ currentView, onNavigate, children }) =>
     { id: 'dashboard', label: t('dashboard'), icon: LayoutDashboard },
     { id: 'scan', label: t('scan'), icon: ScanLine },
     { id: 'register', label: t('register'), icon: UserPlus },
+    { id: 'students', label: t('students'), icon: Users }, 
     { id: 'reports', label: t('reports'), icon: FileBarChart },
     { id: 'settings', label: t('settings'), icon: Settings },
   ];
+
+  // FILTER MENU ITEMS BASED ON PERMISSIONS
+  const filteredMenuItems = menuItems.filter(item => {
+      // Admins always have access
+      if (currentUser?.role === 'admin') return true;
+      
+      // Check user permissions
+      if (currentUser?.permissions && currentUser.permissions.includes(item.id as any)) {
+          return true;
+      }
+      
+      return false;
+  });
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden font-sans text-slate-900">
@@ -74,7 +89,7 @@ const Layout: React.FC<LayoutProps> = ({ currentView, onNavigate, children }) =>
 
         {/* Menu Items */}
         <nav className="flex-1 px-3 py-4 space-y-2 overflow-y-auto custom-scrollbar">
-          {menuItems.map((item) => {
+          {filteredMenuItems.map((item) => {
             const isActive = currentView === item.id;
             return (
               <div key={item.id} className="relative group">

@@ -1,18 +1,49 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { Save, Globe, Building, Phone, Users, FileText, Trash2, Plus, Hash, LogOut } from 'lucide-react';
-import { User, UserRole, IdGenerationFormat } from '../types';
+import { Save, Globe, Building, Phone, Users, FileText, Trash2, Plus, Hash, LogOut, Edit, X, Archive, RefreshCcw, Shield, Check, UserPlus, ArrowRight, ShieldPlus } from 'lucide-react';
+import { User, UserRole, UserPermission } from '../types';
 import ImageUploader from '../components/ImageUploader';
 
 const Settings = () => {
-  const { settings, updateSettings, t, currentUser, users, addUser, deleteUser, logs, logout } = useAppContext();
-  const [activeTab, setActiveTab] = useState<'general' | 'users' | 'logs'>('general');
+  const { settings, updateSettings, updateRolePermissions, addRole, deleteRole, t, currentUser, users, addUser, deleteUser, restoreUser, deleteUserPermanently, updateUser, logs, logout } = useAppContext();
+  const [activeTab, setActiveTab] = useState<'general' | 'users' | 'roles' | 'logs'>('general');
   const [formData, setFormData] = useState(settings);
   const [msg, setMsg] = useState('');
 
-  // User Form
-  const [newUser, setNewUser] = useState<Partial<User>>({ role: 'teacher' });
+  // User Management State
+  const [userViewMode, setUserViewMode] = useState<'active' | 'archived'>('active');
+  const [newUser, setNewUser] = useState<Partial<User>>({ 
+      role: 'staff', 
+      permissions: [] // Default will be set by context
+  });
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+
+  // Roles Management State
+  const [selectedRole, setSelectedRole] = useState<UserRole>('staff');
+  const [isAssignUserModalOpen, setIsAssignUserModalOpen] = useState(false);
+  const [isEditingPermissions, setIsEditingPermissions] = useState(false);
+  const [tempPermissions, setTempPermissions] = useState<UserPermission[]>([]);
+  const [newRoleName, setNewRoleName] = useState('');
+  const [isAddRoleMode, setIsAddRoleMode] = useState(false);
+
+  const availablePermissions: {id: UserPermission, label: string}[] = [
+      { id: 'dashboard', label: 'Dashboard' },
+      { id: 'scan', label: 'Attendance Scanner' },
+      { id: 'register', label: 'Student Registration' },
+      { id: 'students', label: 'Student Management' },
+      { id: 'reports', label: 'Reports & Analytics' },
+      { id: 'settings', label: 'System Settings' },
+  ];
+
+  // Fallback default permissions if not in settings
+  const roleDefaultPermissions: Record<string, UserPermission[]> = {
+      admin: ['dashboard', 'scan', 'register', 'students', 'reports', 'settings'],
+      director: ['dashboard', 'students', 'reports', 'register', 'settings'],
+      manager: ['dashboard', 'students', 'reports', 'register'],
+      deputy_manager: ['dashboard', 'students', 'reports', 'scan'],
+      staff: ['dashboard', 'scan', 'students']
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -25,6 +56,20 @@ const Settings = () => {
     setTimeout(() => setMsg(''), 3000);
   };
 
+  // Helper to toggle permission in array
+  const togglePermission = (
+      currentPermissions: UserPermission[] | undefined, 
+      perm: UserPermission, 
+      setter: (p: UserPermission[]) => void
+  ) => {
+      const current = currentPermissions || [];
+      if (current.includes(perm)) {
+          setter(current.filter(p => p !== perm));
+      } else {
+          setter([...current, perm]);
+      }
+  };
+
   const handleCreateUser = (e: React.FormEvent) => {
       e.preventDefault();
       if(newUser.username && newUser.password && newUser.fullName) {
@@ -34,12 +79,78 @@ const Settings = () => {
               password: newUser.password!,
               fullName: newUser.fullName!,
               title: newUser.title || 'Staff',
-              role: (newUser.role as UserRole) || 'teacher',
-              photoUrl: 'https://via.placeholder.com/150'
+              role: (newUser.role as UserRole) || 'staff',
+              photoUrl: 'https://via.placeholder.com/150',
+              permissions: newUser.permissions
           });
-          setNewUser({ role: 'teacher', username: '', password: '', fullName: '', title: '' });
+          setNewUser({ role: 'staff', username: '', password: '', fullName: '', title: '', permissions: [] });
       }
   };
+
+  const handleUpdateUser = (e: React.FormEvent) => {
+      e.preventDefault();
+      if(editingUser) {
+          updateUser(editingUser);
+          setEditingUser(null);
+      }
+  };
+
+  const handleAssignUserRole = (userId: string) => {
+      const targetUser = users.find(u => u.id === userId);
+      if (targetUser) {
+          updateUser({
+              ...targetUser,
+              role: selectedRole,
+              permissions: settings.rolePermissions?.[selectedRole] || roleDefaultPermissions['staff']
+          });
+          setIsAssignUserModalOpen(false);
+      }
+  };
+
+  // Role Permissions Handlers
+  const startEditingPermissions = () => {
+      const currentPerms = settings.rolePermissions?.[selectedRole] || roleDefaultPermissions[selectedRole] || roleDefaultPermissions['staff'];
+      setTempPermissions([...currentPerms]);
+      setIsEditingPermissions(true);
+  };
+
+  const handleToggleTempPermission = (permId: UserPermission) => {
+      if (tempPermissions.includes(permId)) {
+          setTempPermissions(prev => prev.filter(p => p !== permId));
+      } else {
+          setTempPermissions(prev => [...prev, permId]);
+      }
+  };
+
+  const savePermissions = () => {
+      updateRolePermissions(selectedRole, tempPermissions);
+      setIsEditingPermissions(false);
+  };
+
+  const cancelEditPermissions = () => {
+      setIsEditingPermissions(false);
+  };
+
+  const handleAddRole = (e: React.FormEvent) => {
+      e.preventDefault();
+      if (newRoleName.trim()) {
+          addRole(newRoleName.trim());
+          setNewRoleName('');
+          setIsAddRoleMode(false);
+      }
+  };
+
+  const filteredUsers = useMemo(() => {
+      return users.filter(u => userViewMode === 'active' ? !u.isArchived : u.isArchived);
+  }, [users, userViewMode]);
+
+  const usersInSelectedRole = useMemo(() => {
+      return users.filter(u => u.role === selectedRole && !u.isArchived);
+  }, [users, selectedRole]);
+
+  const usersNotInSelectedRole = useMemo(() => {
+      return users.filter(u => u.role !== selectedRole && !u.isArchived);
+  }, [users, selectedRole]);
 
   return (
     <div className="space-y-6">
@@ -52,6 +163,7 @@ const Settings = () => {
             {currentUser?.role === 'admin' && (
                 <>
                 <TabButton active={activeTab === 'users'} onClick={() => setActiveTab('users')} label="Users" icon={Users} />
+                <TabButton active={activeTab === 'roles'} onClick={() => setActiveTab('roles')} label="Roles & Permissions" icon={Shield} />
                 <TabButton active={activeTab === 'logs'} onClick={() => setActiveTab('logs')} label="Logs" icon={FileText} />
                 </>
             )}
@@ -61,8 +173,6 @@ const Settings = () => {
       {/* GENERAL TAB */}
       {activeTab === 'general' && (
         <form onSubmit={handleSubmit} className="bg-white p-5 rounded-xl shadow-sm border border-slate-100 space-y-6 animate-in fade-in">
-            
-            {/* ID Generation */}
             <div className="space-y-3">
                 <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide flex items-center gap-2">
                     <Hash size={16} /> ID Generation
@@ -94,22 +204,6 @@ const Settings = () => {
                             />
                         </div>
                      )}
-                </div>
-            </div>
-
-            <div className="space-y-3 pt-2 border-t border-slate-100">
-                <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide flex items-center gap-2">
-                    <Globe size={16} /> Language
-                </h3>
-                <div className="grid grid-cols-2 gap-3">
-                    <label className={`cursor-pointer border p-3 rounded-xl flex items-center gap-2 transition-all ${formData.language === 'en' ? 'bg-blue-50 border-blue-500 ring-1 ring-blue-500' : 'hover:bg-slate-50'}`}>
-                        <input type="radio" name="language" value="en" checked={formData.language === 'en'} onChange={handleChange} className="w-4 h-4" />
-                        <span className="text-sm font-medium">English</span>
-                    </label>
-                    <label className={`cursor-pointer border p-3 rounded-xl flex items-center gap-2 transition-all ${formData.language === 'tr' ? 'bg-blue-50 border-blue-500 ring-1 ring-blue-500' : 'hover:bg-slate-50'}`}>
-                        <input type="radio" name="language" value="tr" checked={formData.language === 'tr'} onChange={handleChange} className="w-4 h-4" />
-                        <span className="text-sm font-medium">Türkçe</span>
-                    </label>
                 </div>
             </div>
 
@@ -148,38 +242,327 @@ const Settings = () => {
       {/* USERS TAB */}
       {activeTab === 'users' && currentUser?.role === 'admin' && (
           <div className="space-y-6 animate-in fade-in">
-              <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-100">
-                  <h3 className="text-sm font-bold mb-4 flex items-center gap-2"><Plus size={16}/> Add User</h3>
-                  <form onSubmit={handleCreateUser} className="space-y-3">
-                      <input required placeholder="Username" className="w-full px-3 py-2 text-sm border rounded-lg" value={newUser.username} onChange={e => setNewUser({...newUser, username: e.target.value})} />
-                      <input required placeholder="Password" type="password" className="w-full px-3 py-2 text-sm border rounded-lg" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} />
-                      <div className="grid grid-cols-2 gap-3">
-                        <input required placeholder="Full Name" className="px-3 py-2 text-sm border rounded-lg" value={newUser.fullName} onChange={e => setNewUser({...newUser, fullName: e.target.value})} />
-                        <select className="px-3 py-2 text-sm border rounded-lg" value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value as UserRole})}>
-                            <option value="teacher">Teacher</option>
-                            <option value="manager">Manager</option>
-                            <option value="admin">Admin</option>
-                        </select>
-                      </div>
-                      <button type="submit" className="w-full bg-slate-900 text-white py-2 rounded-lg font-bold text-sm hover:bg-slate-800">Create</button>
-                  </form>
+              
+              {/* Active / Archive Toggle */}
+              <div className="flex justify-end gap-2">
+                  <button onClick={() => setUserViewMode('active')} className={`px-3 py-1.5 text-xs font-bold rounded-lg ${userViewMode === 'active' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-500'}`}>Active Users</button>
+                  <button onClick={() => setUserViewMode('archived')} className={`px-3 py-1.5 text-xs font-bold rounded-lg ${userViewMode === 'archived' ? 'bg-orange-500 text-white' : 'bg-slate-100 text-slate-500'}`}>Archived</button>
               </div>
 
+              {/* Create User Form */}
+              {userViewMode === 'active' && (
+                <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-100">
+                    <h3 className="text-sm font-bold mb-4 flex items-center gap-2"><Plus size={16}/> Add User</h3>
+                    <form onSubmit={handleCreateUser} className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <input required placeholder="Username" className="w-full px-3 py-2 text-sm border rounded-lg" value={newUser.username} onChange={e => setNewUser({...newUser, username: e.target.value})} />
+                            <input required placeholder="Password" type="password" className="w-full px-3 py-2 text-sm border rounded-lg" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <input required placeholder="Full Name" className="px-3 py-2 text-sm border rounded-lg" value={newUser.fullName} onChange={e => setNewUser({...newUser, fullName: e.target.value})} />
+                            <input required placeholder="Job Title (e.g. Math Teacher)" className="px-3 py-2 text-sm border rounded-lg" value={newUser.title} onChange={e => setNewUser({...newUser, title: e.target.value})} />
+                        </div>
+                        <div className="grid grid-cols-1">
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Access Role</label>
+                            <select className="px-3 py-2 text-sm border rounded-lg capitalize" value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value as UserRole})}>
+                                {settings.roles.map(r => (
+                                    <option key={r} value={r}>{r.replace('_', ' ')}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <button type="submit" className="w-full bg-slate-900 text-white py-2 rounded-lg font-bold text-sm hover:bg-slate-800">Create User</button>
+                    </form>
+                </div>
+              )}
+
+              {/* User List */}
               <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-                  {users.map(u => (
-                      <div key={u.id} className="p-4 border-b border-slate-100 flex items-center justify-between last:border-0">
+                  {filteredUsers.map(u => (
+                      <div key={u.id} className="p-4 border-b border-slate-100 flex items-center justify-between last:border-0 hover:bg-slate-50 transition">
                           <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-full bg-slate-200 overflow-hidden"><img src={u.photoUrl} className="w-full h-full object-cover"/></div>
+                              <div className="w-10 h-10 rounded-full bg-slate-200 overflow-hidden border border-white shadow-sm">
+                                  {u.photoUrl ? <img src={u.photoUrl} className="w-full h-full object-cover"/> : <div className="w-full h-full bg-slate-300"/>}
+                              </div>
                               <div>
                                   <p className="font-bold text-sm text-slate-900">{u.fullName}</p>
-                                  <p className="text-xs text-slate-500">{u.role} • {u.username}</p>
+                                  <div className="flex gap-2 text-xs text-slate-500 items-center">
+                                      <span className="font-mono bg-slate-100 px-1 rounded">{u.username}</span>
+                                      <span className={`capitalize font-bold ${u.role === 'admin' ? 'text-purple-600' : 'text-blue-600'}`}>{u.role.replace('_', ' ')}</span>
+                                      <span className="text-slate-400">• {u.title}</span>
+                                  </div>
                               </div>
                           </div>
-                          {u.id !== '1' && u.id !== currentUser.id && (
-                              <button onClick={() => deleteUser(u.id)} className="text-red-500 hover:bg-red-50 p-2 rounded"><Trash2 size={16}/></button>
-                          )}
+                          
+                          <div className="flex gap-2">
+                             {userViewMode === 'active' ? (
+                                <>
+                                    <button onClick={() => setEditingUser(u)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Edit">
+                                        <Edit size={16}/>
+                                    </button>
+                                    {u.id !== '1' && u.id !== currentUser.id && (
+                                        <button onClick={() => deleteUser(u.id)} className="text-red-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition" title="Archive">
+                                            <Trash2 size={16}/>
+                                        </button>
+                                    )}
+                                </>
+                             ) : (
+                                <>
+                                    <button onClick={() => restoreUser(u.id)} className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition" title="Restore">
+                                        <RefreshCcw size={16}/>
+                                    </button>
+                                    <button onClick={() => { if(confirm("Permanent Delete?")) deleteUserPermanently(u.id); }} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title="Delete Permanently">
+                                        <X size={16}/>
+                                    </button>
+                                </>
+                             )}
+                          </div>
                       </div>
                   ))}
+              </div>
+          </div>
+      )}
+
+      {/* ROLES & PERMISSIONS TAB */}
+      {activeTab === 'roles' && currentUser?.role === 'admin' && (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 animate-in fade-in h-[calc(100vh-200px)]">
+              
+              {/* Roles Sidebar */}
+              <div className="md:col-span-1 bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden flex flex-col">
+                  <div className="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+                      <h3 className="font-bold text-slate-800 flex items-center gap-2 text-sm"><Shield size={16}/> Roles</h3>
+                      <button onClick={() => setIsAddRoleMode(true)} className="p-1 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition"><Plus size={16}/></button>
+                  </div>
+                  
+                  {isAddRoleMode && (
+                      <form onSubmit={handleAddRole} className="p-2 border-b border-slate-100 bg-blue-50/50">
+                          <input 
+                            autoFocus
+                            placeholder="Role Name..." 
+                            className="w-full px-2 py-1 text-xs border rounded mb-2"
+                            value={newRoleName}
+                            onChange={e => setNewRoleName(e.target.value)}
+                          />
+                          <div className="flex gap-2">
+                              <button type="submit" className="flex-1 bg-blue-600 text-white text-[10px] py-1 rounded font-bold">Add</button>
+                              <button type="button" onClick={() => setIsAddRoleMode(false)} className="flex-1 bg-slate-200 text-slate-600 text-[10px] py-1 rounded font-bold">Cancel</button>
+                          </div>
+                      </form>
+                  )}
+
+                  <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                      {settings.roles.map(role => (
+                          <button
+                            key={role}
+                            onClick={() => { setSelectedRole(role); setIsEditingPermissions(false); }}
+                            className={`w-full text-left px-4 py-3 rounded-lg text-sm font-bold capitalize transition flex items-center justify-between group
+                                ${selectedRole === role ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}
+                            `}
+                          >
+                              <span>{role.replace('_', ' ')}</span>
+                              <div className="flex items-center gap-1">
+                                  {role !== 'admin' && (
+                                      <div 
+                                        role="button" 
+                                        onClick={(e) => { e.stopPropagation(); if(confirm('Delete this role? Users will become Staff.')) deleteRole(role); }}
+                                        className={`opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500 hover:text-white rounded transition ${selectedRole === role ? 'text-blue-200' : 'text-slate-400'}`}
+                                      >
+                                          <Trash2 size={12} />
+                                      </div>
+                                  )}
+                                  {selectedRole === role && <ArrowRight size={14}/>}
+                              </div>
+                          </button>
+                      ))}
+                  </div>
+              </div>
+
+              {/* Role Details */}
+              <div className="md:col-span-3 bg-white rounded-xl shadow-sm border border-slate-100 flex flex-col overflow-hidden">
+                  <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                      <div>
+                          <h3 className="text-xl font-black text-slate-900 capitalize">{selectedRole.replace('_', ' ')} Role</h3>
+                          <p className="text-slate-500 text-xs mt-1">Manage permissions and users for this role</p>
+                      </div>
+                      <div className="flex gap-2">
+                        {isEditingPermissions ? (
+                            <>
+                                <button onClick={cancelEditPermissions} className="bg-slate-200 text-slate-700 px-4 py-2 rounded-lg text-xs font-bold hover:bg-slate-300 transition">Cancel</button>
+                                <button onClick={savePermissions} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-blue-700 transition"><Save size={14}/> Save Permissions</button>
+                            </>
+                        ) : (
+                            <button 
+                                onClick={startEditingPermissions}
+                                className="bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-slate-50 transition shadow-sm"
+                            >
+                                <Edit size={14}/> Edit Permissions
+                            </button>
+                        )}
+                        <button 
+                            onClick={() => setIsAssignUserModalOpen(true)}
+                            className="bg-slate-900 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-slate-800 transition"
+                        >
+                            <UserPlus size={14}/> Assign User
+                        </button>
+                      </div>
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
+                      
+                      {/* Permissions View */}
+                      <div>
+                          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Effective Permissions</h4>
+                          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                              {availablePermissions.map(perm => {
+                                  const currentPerms = settings.rolePermissions?.[selectedRole] || roleDefaultPermissions[selectedRole] || roleDefaultPermissions['staff'];
+                                  const hasPerm = isEditingPermissions ? tempPermissions.includes(perm.id) : currentPerms.includes(perm.id);
+                                  
+                                  return (
+                                      <div 
+                                        key={perm.id} 
+                                        onClick={() => isEditingPermissions && handleToggleTempPermission(perm.id)}
+                                        className={`
+                                            flex items-center gap-3 p-3 rounded-xl border transition select-none
+                                            ${isEditingPermissions ? 'cursor-pointer hover:border-blue-300' : 'cursor-default'}
+                                            ${hasPerm ? 'border-green-200 bg-green-50' : 'border-slate-100 bg-slate-50 opacity-60'}
+                                        `}
+                                      >
+                                          <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${hasPerm ? 'bg-green-500 text-white' : 'bg-slate-200 text-slate-400'}`}>
+                                              {hasPerm ? <Check size={12}/> : <X size={12}/>}
+                                          </div>
+                                          <span className={`text-xs font-bold ${hasPerm ? 'text-green-800' : 'text-slate-500'}`}>{perm.label}</span>
+                                      </div>
+                                  )
+                              })}
+                          </div>
+                      </div>
+
+                      {/* Users List */}
+                      <div>
+                          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Assigned Users ({usersInSelectedRole.length})</h4>
+                          <div className="space-y-2">
+                              {usersInSelectedRole.length === 0 && <p className="text-slate-400 text-sm italic">No users assigned to this role.</p>}
+                              {usersInSelectedRole.map(u => (
+                                  <div key={u.id} className="flex items-center justify-between p-3 rounded-xl border border-slate-100 hover:border-blue-200 transition bg-white group">
+                                      <div className="flex items-center gap-3">
+                                          <div className="w-8 h-8 rounded-full bg-slate-100 overflow-hidden">
+                                              {u.photoUrl && <img src={u.photoUrl} className="w-full h-full object-cover"/>}
+                                          </div>
+                                          <div>
+                                              <p className="text-sm font-bold text-slate-900">{u.fullName}</p>
+                                              <p className="text-xs text-slate-500">{u.title}</p>
+                                          </div>
+                                      </div>
+                                      {u.id !== '1' && u.id !== currentUser.id && (
+                                          <button 
+                                            onClick={() => {
+                                                if(confirm(`Remove ${u.fullName} from ${selectedRole}? They will become Staff.`)) {
+                                                    updateUser({...u, role: 'staff', permissions: settings.rolePermissions?.['staff'] || roleDefaultPermissions['staff']});
+                                                }
+                                            }}
+                                            className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition p-2"
+                                            title="Remove from role"
+                                          >
+                                              <Trash2 size={16}/>
+                                          </button>
+                                      )}
+                                  </div>
+                              ))}
+                          </div>
+                      </div>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* ASSIGN USER MODAL */}
+      {isAssignUserModalOpen && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl flex flex-col max-h-[80vh]">
+                  <div className="p-5 border-b border-slate-100 flex justify-between items-center">
+                      <h3 className="font-bold text-slate-800">Assign to {selectedRole.replace('_', ' ')}</h3>
+                      <button onClick={() => setIsAssignUserModalOpen(false)}><X size={20}/></button>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-2">
+                      {usersNotInSelectedRole.length === 0 ? (
+                          <p className="p-6 text-center text-slate-500 text-sm">All active users are already {selectedRole}s.</p>
+                      ) : (
+                          usersNotInSelectedRole.map(u => (
+                              <button 
+                                key={u.id} 
+                                onClick={() => handleAssignUserRole(u.id)}
+                                className="w-full p-3 flex items-center justify-between hover:bg-slate-50 rounded-xl transition group text-left"
+                              >
+                                  <div className="flex items-center gap-3">
+                                      <div className="w-8 h-8 rounded-full bg-slate-200 overflow-hidden">
+                                          {u.photoUrl && <img src={u.photoUrl} className="w-full h-full object-cover"/>}
+                                      </div>
+                                      <div>
+                                          <p className="text-sm font-bold text-slate-900">{u.fullName}</p>
+                                          <p className="text-xs text-slate-500 capitalize">Current: {u.role}</p>
+                                      </div>
+                                  </div>
+                                  <ArrowRight size={16} className="text-slate-300 group-hover:text-blue-600"/>
+                              </button>
+                          ))
+                      )}
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* EDIT USER MODAL */}
+      {editingUser && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
+                  <div className="flex justify-between items-center p-6 border-b border-slate-100">
+                      <h3 className="text-lg font-bold text-slate-800">Edit User</h3>
+                      <button onClick={() => setEditingUser(null)}><X size={20}/></button>
+                  </div>
+                  
+                  <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+                    <form onSubmit={handleUpdateUser} className="space-y-4">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Full Name</label>
+                            <input required className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" value={editingUser.fullName} onChange={e => setEditingUser({...editingUser, fullName: e.target.value})} />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Job Title</label>
+                            <input required className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" value={editingUser.title} onChange={e => setEditingUser({...editingUser, title: e.target.value})} />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Role</label>
+                            <select className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm capitalize" value={editingUser.role} onChange={e => setEditingUser({...editingUser, role: e.target.value as UserRole})}>
+                                {settings.roles.map(r => (
+                                    <option key={r} value={r}>{r.replace('_', ' ')}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Password</label>
+                            <input className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" placeholder="New Password (optional)" onChange={e => setEditingUser({...editingUser, password: e.target.value})} />
+                        </div>
+
+                        {/* Edit Permissions (User Override) */}
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-3">Module Access (User Override)</label>
+                            <div className="grid grid-cols-2 gap-3">
+                                {availablePermissions.map(perm => (
+                                    <label key={perm.id} className="flex items-center gap-2 cursor-pointer hover:bg-white p-2 rounded transition">
+                                        <input 
+                                            type="checkbox" 
+                                            className="rounded text-blue-600 focus:ring-blue-500"
+                                            checked={editingUser.permissions?.includes(perm.id)}
+                                            onChange={() => togglePermission(editingUser.permissions, perm.id, (p) => setEditingUser({...editingUser, permissions: p}))}
+                                        />
+                                        <span className="text-xs font-medium text-slate-700">{perm.label}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+
+                        <button type="submit" className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl mt-4 hover:bg-blue-700">Update User</button>
+                    </form>
+                  </div>
               </div>
           </div>
       )}

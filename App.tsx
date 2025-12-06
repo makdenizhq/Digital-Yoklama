@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { AppProvider, useAppContext } from './context/AppContext';
 import Layout from './components/Layout';
@@ -8,6 +9,7 @@ import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 import Login from './pages/Login';
 import Profile from './pages/Profile';
+import Students from './pages/Students'; // New Page
 import { ViewState } from './types';
 
 const AppContent = () => {
@@ -23,6 +25,7 @@ const AppContent = () => {
       case 'dashboard': return <Dashboard />;
       case 'scan': return <Scanner />;
       case 'register': return <Registration />;
+      case 'students': return <Students />;
       case 'reports': return <Reports />;
       case 'settings': return <Settings />;
       case 'profile': return <Profile />;

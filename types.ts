@@ -18,6 +18,7 @@ export interface Student {
   dob?: string;
   address?: string;
   gender?: 'Male' | 'Female';
+  isArchived?: boolean; // Soft delete flag
 }
 
 export interface AttendanceRecord {
@@ -46,9 +47,14 @@ export interface SchoolSettings {
   idFormat: IdGenerationFormat;
   schoolPrefix: string; // e.g. "FTH" for Future Tech High
   schoolLogoUrl?: string;
+  idSequences?: Record<string, number>; // Key: Grade (e.g. "9"), Value: Next Sequence (e.g. 101)
+  roles: string[]; // List of available roles (Dynamic)
+  rolePermissions?: Record<string, UserPermission[]>; // Custom role configuration
 }
 
-export type UserRole = 'admin' | 'manager' | 'teacher';
+// UserRole is now string to support dynamic roles, but we maintain strong typing for defaults
+export type UserRole = string; 
+export type UserPermission = 'dashboard' | 'scan' | 'register' | 'students' | 'reports' | 'settings';
 
 export interface User {
   id: string;
@@ -56,9 +62,11 @@ export interface User {
   password?: string; // In a real app, never store plain text
   fullName: string;
   email?: string;
-  title: string; // e.g. "School Principal", "IT Manager"
+  title: string; // e.g. "School Principal", "IT Manager", "Math Teacher", "Nurse"
   role: UserRole;
   photoUrl?: string;
+  isArchived?: boolean;
+  permissions?: UserPermission[];
 }
 
 export interface AuditLog {
@@ -70,4 +78,4 @@ export interface AuditLog {
   timestamp: number;
 }
 
-export type ViewState = 'dashboard' | 'scan' | 'register' | 'reports' | 'settings' | 'profile';
+export type ViewState = 'dashboard' | 'scan' | 'register' | 'students' | 'reports' | 'settings' | 'profile';
