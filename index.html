@@ -1,9 +1,10 @@
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AttendAI - Smart Attendance</title>
+    <title>Smart School</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- TensorFlow.js and BlazeFace for Face Detection -->
@@ -20,28 +21,46 @@
       
       @media print {
         @page { margin: 0; size: auto; }
+        
         html, body { 
-          background: white; 
-          margin: 0; 
-          padding: 0; 
+          background: white !important; 
+          margin: 0 !important; 
+          padding: 0 !important; 
           height: 100%; 
           width: 100%;
-          -webkit-print-color-adjust: exact; 
-          print-color-adjust: exact; 
+          -webkit-print-color-adjust: exact !important; 
+          print-color-adjust: exact !important; 
         }
-        .no-print { display: none !important; }
+        
+        /* Hide everything by default using visibility, NOT display:none on parents */
+        body * {
+          visibility: hidden;
+        }
+
+        /* Make the print-only container and its children visible */
+        .print-only, .print-only * {
+          visibility: visible !important;
+        }
+
+        /* Position the print container to cover the viewport */
         .print-only { 
           display: flex !important; 
           flex-direction: column;
           align-items: center; 
           justify-content: center;
-          gap: 20px;
           position: fixed; 
-          inset: 0; 
-          z-index: 9999; 
-          background: white; 
-          width: 100vw; 
-          height: 100vh; 
+          left: 0; 
+          top: 0; 
+          width: 100%; 
+          height: 100%; 
+          background: white;
+          z-index: 99999;
+          gap: 10mm;
+        }
+        
+        /* Ensure no other UI elements interfere */
+        aside, header, nav, .no-print {
+            display: none !important;
         }
       }
     </style>
@@ -53,7 +72,8 @@
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.31.0",
     "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0",
-    "recharts": "https://aistudiocdn.com/recharts@^3.5.1"
+    "recharts": "https://aistudiocdn.com/recharts@^3.5.1",
+    "react-qr-code": "https://aistudiocdn.com/react-qr-code@^2.0.15"
   }
 }
 </script>

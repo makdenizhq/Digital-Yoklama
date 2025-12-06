@@ -359,7 +359,7 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
         playsInline
         muted
         onPlaying={handleVideoPlaying} 
-        className={`relative z-10 w-full h-full object-cover transition-opacity duration-500 bg-black object-contain ${
+        className={`relative z-10 w-full h-full transition-opacity duration-500 bg-black object-contain ${
             (isActive && isVideoReady && !capturedImage) ? 'opacity-100' : 'opacity-0 invisible'
         } ${mode === 'registration' ? 'transform scale-x-[-1]' : ''}`} 
       />

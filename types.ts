@@ -17,6 +17,7 @@ export interface Student {
   guardian: Guardian;
   dob?: string;
   address?: string;
+  gender?: 'Male' | 'Female';
 }
 
 export interface AttendanceRecord {
