@@ -32,7 +32,7 @@ const Profile = () => {
               title: formData.title,
               photoUrl: formData.photoUrl
           });
-          setMsg('Profile updated.');
+          setMsg(t('update') + ' ' + t('verified'));
           setTimeout(() => setMsg(''), 3000);
       }
   };
@@ -51,7 +51,7 @@ const Profile = () => {
           <form onSubmit={handleSubmit} className="space-y-4 max-w-lg">
               
               <ImageUploader 
-                  label="Profile Photo"
+                  label={t('profile')}
                   image={formData.photoUrl}
                   onImageChange={(base64) => setFormData({...formData, photoUrl: base64})}
                   onRemove={() => setFormData({...formData, photoUrl: ''})}
@@ -60,7 +60,7 @@ const Profile = () => {
               />
 
               <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Full Name</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('fullName')}</label>
                   <input 
                     required 
                     value={formData.fullName} 
@@ -69,7 +69,7 @@ const Profile = () => {
                   />
               </div>
               <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Job Title</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('jobTitle')}</label>
                   <input 
                     required 
                     value={formData.title} 
@@ -79,7 +79,7 @@ const Profile = () => {
               </div>
               
               <button type="submit" className="w-full py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition flex items-center justify-center gap-2 mt-4 text-sm">
-                    <Save size={18} /> Update
+                    <Save size={18} /> {t('update')}
               </button>
 
               {msg && <p className="text-center text-green-600 font-bold text-xs">{msg}</p>}

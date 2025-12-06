@@ -9,7 +9,7 @@ import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 import Login from './pages/Login';
 import Profile from './pages/Profile';
-import Students from './pages/Students'; // New Page
+import Students from './pages/Students'; 
 import { ViewState } from './types';
 
 const AppContent = () => {

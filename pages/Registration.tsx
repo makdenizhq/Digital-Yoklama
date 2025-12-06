@@ -255,9 +255,15 @@ const Registration = () => {
   const labelClass = "block text-xs font-bold text-slate-500 mb-1.5 ml-1 uppercase";
   const inputClass = "w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all duration-200 font-medium text-sm";
 
-  // Handle Print Action (Standard Browser Print)
-  const handlePrint = () => {
-      window.print();
+  // Handle Print Action (Standard Browser Print with Fix)
+  const handlePrint = (e: React.MouseEvent) => {
+      // Prevent default form submission or navigation
+      e.preventDefault();
+      
+      // Delay print dialog to ensure any UI updates settle and browser is ready
+      setTimeout(() => {
+          window.print();
+      }, 100);
   };
 
   return (
@@ -271,7 +277,7 @@ const Registration = () => {
         </div>
         {step === 'details' && (
             <button type="button" onClick={handleFillTestData} className="text-xs bg-white border border-slate-200 text-slate-600 px-4 py-2 rounded-lg hover:bg-slate-50 hover:text-blue-600 transition flex items-center gap-2 font-bold shadow-sm">
-                <Wand2 size={14}/> Fill Test Data
+                <Wand2 size={14}/> {t('fillTestData')}
             </button>
         )}
       </div>
@@ -279,27 +285,27 @@ const Registration = () => {
       {/* Step 1: Details */}
       {step === 'details' && (
          <form onSubmit={handleStartCapture} className="space-y-6 pb-20 no-print">
-            {/* Form Fields ... (Kept same as before) */}
+            {/* Form Fields */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className={sectionClass}>
                     <h3 className={headerClass}><User size={20} className="text-blue-500"/> {t('personalInfo')}</h3>
                     <div className="space-y-4">
                         <div className="grid grid-cols-2 gap-4">
-                            <div><label className={labelClass}>{t('firstName')}</label><input required placeholder="Name" className={inputClass} value={studentInfo.firstName} onChange={e => setStudentInfo({...studentInfo, firstName: e.target.value})} /></div>
-                            <div><label className={labelClass}>{t('lastName')}</label><input required placeholder="Surname" className={inputClass} value={studentInfo.lastName} onChange={e => setStudentInfo({...studentInfo, lastName: e.target.value})} /></div>
+                            <div><label className={labelClass}>{t('firstName')}</label><input required placeholder={t('firstName')} className={inputClass} value={studentInfo.firstName} onChange={e => setStudentInfo({...studentInfo, firstName: e.target.value})} /></div>
+                            <div><label className={labelClass}>{t('lastName')}</label><input required placeholder={t('lastName')} className={inputClass} value={studentInfo.lastName} onChange={e => setStudentInfo({...studentInfo, lastName: e.target.value})} /></div>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className={labelClass}>Gender</label>
+                                <label className={labelClass}>{t('gender')}</label>
                                 <select className={inputClass} value={studentInfo.gender} onChange={e => setStudentInfo({...studentInfo, gender: e.target.value})}>
                                     <option value="">Select</option>
                                     <option value="Male">Male</option>
                                     <option value="Female">Female</option>
                                 </select>
                             </div>
-                            <div><label className={labelClass}>Date of Birth</label><input type="date" className={inputClass} value={studentInfo.dob} onChange={e => setStudentInfo({...studentInfo, dob: e.target.value})} /></div>
+                            <div><label className={labelClass}>{t('dob')}</label><input type="date" className={inputClass} value={studentInfo.dob} onChange={e => setStudentInfo({...studentInfo, dob: e.target.value})} /></div>
                         </div>
-                         <div><label className={labelClass}>Address</label><input placeholder="Full Address" className={inputClass} value={studentInfo.address} onChange={e => setStudentInfo({...studentInfo, address: e.target.value})} /></div>
+                         <div><label className={labelClass}>{t('address')}</label><input placeholder={t('address')} className={inputClass} value={studentInfo.address} onChange={e => setStudentInfo({...studentInfo, address: e.target.value})} /></div>
                     </div>
                 </div>
                 <div className={sectionClass}>
@@ -308,15 +314,15 @@ const Registration = () => {
                         <div><label className={labelClass}>{t('grade')}</label><select required className={inputClass} value={academicInfo.gradeLevel} onChange={e => setAcademicInfo({...academicInfo, gradeLevel: e.target.value})}><option value="">Select</option>{[9,10,11,12].map(g => <option key={g} value={g}>{g}</option>)}</select></div>
                         <div><label className={labelClass}>{t('section')}</label><select required className={inputClass} value={academicInfo.section} onChange={e => setAcademicInfo({...academicInfo, section: e.target.value})}><option value="">Select</option>{['A','B','C','D','E'].map(s => <option key={s} value={s}>{s}</option>)}</select></div>
                     </div>
-                    <div><label className={labelClass}>{t('teacher')}</label><input required placeholder="Class Teacher Name" className={inputClass} value={academicInfo.classTeacher} onChange={e => setAcademicInfo({...academicInfo, classTeacher: e.target.value})} /></div>
+                    <div><label className={labelClass}>{t('teacher')}</label><input required placeholder={t('teacher')} className={inputClass} value={academicInfo.classTeacher} onChange={e => setAcademicInfo({...academicInfo, classTeacher: e.target.value})} /></div>
                 </div>
                  <div className={`${sectionClass} md:col-span-2`}>
                     <h3 className={headerClass}><Phone size={20} className="text-green-500"/> {t('guardianInfo')}</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                         <div><label className={labelClass}>{t('parentName')}</label><input required placeholder="Guardian Name" className={inputClass} value={guardianInfo.name} onChange={e => setGuardianInfo({...guardianInfo, name: e.target.value})} /></div>
+                         <div><label className={labelClass}>{t('parentName')}</label><input required placeholder={t('parentName')} className={inputClass} value={guardianInfo.name} onChange={e => setGuardianInfo({...guardianInfo, name: e.target.value})} /></div>
                         <div className="grid grid-cols-2 gap-4">
-                            <div><label className={labelClass}>Relation</label><select required className={inputClass} value={guardianInfo.relation} onChange={e => setGuardianInfo({...guardianInfo, relation: e.target.value})}><option value="">Select</option><option value="Father">Father</option><option value="Mother">Mother</option><option value="Relative">Relative</option></select></div>
-                            <div><label className={labelClass}>{t('phone')}</label><input required placeholder="Phone Number" className={inputClass} value={guardianInfo.phone} onChange={e => setGuardianInfo({...guardianInfo, phone: e.target.value})} /></div>
+                            <div><label className={labelClass}>{t('relation')}</label><select required className={inputClass} value={guardianInfo.relation} onChange={e => setGuardianInfo({...guardianInfo, relation: e.target.value})}><option value="">Select</option><option value="Father">Father</option><option value="Mother">Mother</option><option value="Relative">Relative</option></select></div>
+                            <div><label className={labelClass}>{t('phone')}</label><input required placeholder={t('phone')} className={inputClass} value={guardianInfo.phone} onChange={e => setGuardianInfo({...guardianInfo, phone: e.target.value})} /></div>
                         </div>
                     </div>
                 </div>
@@ -324,7 +330,7 @@ const Registration = () => {
 
             <div className="pt-4 flex justify-end">
                 <button type="submit" className="px-8 py-4 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-all flex items-center gap-3 text-lg shadow-xl shadow-slate-900/10 hover:shadow-2xl hover:scale-[1.02] active:scale-[0.98]">
-                    <Camera size={24} /> Start Photo Capture
+                    <Camera size={24} /> {t('startCapture')}
                 </button>
             </div>
          </form>
@@ -335,7 +341,7 @@ const Registration = () => {
           <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300 no-print">
              <div className="bg-black w-full max-w-7xl h-[95vh] rounded-3xl overflow-hidden shadow-2xl border border-slate-800 flex flex-col relative">
                  <div className="flex justify-between items-center p-6 text-white bg-slate-900/50 z-50 flex-shrink-0 backdrop-blur-sm border-b border-white/5">
-                     <h2 className="text-xl font-bold flex items-center gap-3"><Camera className="text-green-400" size={24} /> Capture Reference Photos ({capturedPhotos.length}/5)</h2>
+                     <h2 className="text-xl font-bold flex items-center gap-3"><Camera className="text-green-400" size={24} /> {t('capturePhotos')} ({capturedPhotos.length}/5)</h2>
                      <button type="button" onClick={() => setShowCameraModal(false)} className="bg-white/10 hover:bg-white/20 p-2 rounded-full transition"><X size={20} /></button>
                  </div>
                  
@@ -458,7 +464,7 @@ const Registration = () => {
                                                     setCapturedPhotos(newPhotos);
                                                 }}
                                                 className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:bg-red-600"
-                                                title="Delete"
+                                                title={t('delete')}
                                             >
                                                 <X size={12} />
                                             </button>
@@ -486,7 +492,7 @@ const Registration = () => {
                   <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
                       <Check size={40} />
                   </div>
-                  <h2 className="text-3xl font-black text-slate-900 mb-2">Registration Complete!</h2>
+                  <h2 className="text-3xl font-black text-slate-900 mb-2">{t('registrationComplete')}</h2>
                   <p className="text-slate-500 mb-10">The student has been successfully added to the system.</p>
                   
                   {/* Cards Preview on Screen */}
@@ -507,10 +513,10 @@ const Registration = () => {
 
                   <div className="flex gap-4 justify-center">
                       <button type="button" onClick={handlePrint} className="px-6 py-3 bg-blue-600 text-white font-bold rounded-xl flex items-center gap-2 hover:bg-blue-700 transition shadow-lg shadow-blue-600/30">
-                          <Printer size={20} /> Kartı Yazdır
+                          <Printer size={20} /> {t('printId')}
                       </button>
                       <button type="button" onClick={handleReset} className="px-6 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl flex items-center gap-2 hover:bg-slate-200 transition">
-                          <Plus size={20} /> Yeni Öğrenci
+                          <Plus size={20} /> {t('newStudent')}
                       </button>
                   </div>
               </div>

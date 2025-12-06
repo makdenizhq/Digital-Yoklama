@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { FileText, Download, X, Calendar } from 'lucide-react';
+import { FileText, Download, X, Calendar, Printer } from 'lucide-react';
 
 const Reports = () => {
   const { students, attendance, t } = useAppContext();
@@ -78,10 +78,24 @@ const Reports = () => {
       return Array.from(grades).sort();
   }, [students]);
 
+  const handlePrint = (e: React.MouseEvent) => {
+      e.preventDefault();
+      setTimeout(() => window.print(), 100);
+  };
+
   return (
     <div className="space-y-4">
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 sticky top-0 z-10">
-        <h2 className="text-lg font-bold text-slate-800 mb-3">{t('reports')}</h2>
+      <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 sticky top-0 z-10 no-print">
+        <div className="flex justify-between items-center mb-3">
+            <h2 className="text-lg font-bold text-slate-800">{t('reports')}</h2>
+            <button 
+                type="button" 
+                onClick={handlePrint}
+                className="flex items-center gap-2 bg-blue-50 text-blue-600 px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-100 transition"
+            >
+                <Printer size={16} /> Print Report
+            </button>
+        </div>
         <div className="flex gap-2 flex-wrap">
             <select value={dateRange} onChange={(e) => setDateRange(e.target.value as any)} className="flex-1 min-w-[100px] px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none cursor-pointer hover:bg-slate-100 transition">
                 <option value="today">Today</option>
@@ -105,7 +119,16 @@ const Reports = () => {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+      {/* PRINT HEADER (Visible only when printing) */}
+      <div className="hidden print:block mb-6 text-center">
+          <h1 className="text-2xl font-bold mb-2">Attendance Report</h1>
+          <p className="text-sm text-slate-500">
+              Filter: {dateRange.toUpperCase()} • Grade: {gradeFilter === 'all' ? 'All' : gradeFilter} • Status: {statusFilter.toUpperCase()}
+          </p>
+          <p className="text-xs text-slate-400 mt-1">Generated on {new Date().toLocaleDateString()}</p>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden print:border-none print:shadow-none">
         <div className="overflow-x-auto">
             <table className="w-full text-left text-xs whitespace-nowrap">
                 <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
@@ -121,21 +144,21 @@ const Reports = () => {
                         <tr><td colSpan={4} className="px-4 py-8 text-center text-slate-400 font-medium">No records found matching filters.</td></tr>
                     ) : (
                         filteredData.map((item, idx) => (
-                            <tr key={idx} onClick={() => setSelectedStudentId(item.id)} className="hover:bg-blue-50/50 transition cursor-pointer group">
+                            <tr key={idx} onClick={() => setSelectedStudentId(item.id)} className="hover:bg-blue-50/50 transition cursor-pointer group print:break-inside-avoid">
                                 <td className="px-4 py-3 font-medium text-slate-900 flex items-center gap-3">
-                                    <img src={item.photos?.[0] || ''} alt="" className="w-8 h-8 rounded-full bg-slate-200 object-cover border border-slate-100" />
+                                    <img src={item.photos?.[0] || ''} alt="" className="w-8 h-8 rounded-full bg-slate-200 object-cover border border-slate-100 print:hidden" />
                                     <div>
                                         <div className="font-bold">{item.firstName} {item.lastName}</div>
                                         <div className="text-[10px] text-slate-400 font-mono sm:hidden">{item.gradeLevel}-{item.section}</div>
                                     </div>
                                 </td>
                                 <td className="px-4 py-3 text-slate-600 hidden sm:table-cell">
-                                    <span className="bg-slate-100 px-2 py-1 rounded text-[10px] font-bold text-slate-700">
+                                    <span className="bg-slate-100 px-2 py-1 rounded text-[10px] font-bold text-slate-700 print:bg-white print:border print:border-slate-300">
                                         {item.gradeLevel}-{item.section}
                                     </span>
                                 </td>
                                 <td className="px-4 py-3">
-                                    <span className={`inline-flex items-center px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider
+                                    <span className={`inline-flex items-center px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider print:border print:border-slate-300
                                         ${item.status === 'present' ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-100 text-red-700 border border-red-200'}
                                     `}>
                                         {item.status}
@@ -153,7 +176,7 @@ const Reports = () => {
       </div>
 
       {selectedStudent && (
-          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm sm:p-4 animate-in fade-in duration-200">
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm sm:p-4 animate-in fade-in duration-200 no-print">
               <div className="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom duration-300">
                   <div className="bg-slate-900 p-5 text-white flex justify-between items-start relative overflow-hidden">
                       <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-10 -mt-10"></div>

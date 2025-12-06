@@ -32,8 +32,8 @@ const Dashboard = () => {
   }, [students, attendance]);
 
   const chartData = [
-    { name: 'Present', value: stats.present, color: '#10b981' },
-    { name: 'Absent', value: stats.absent, color: '#ef4444' },
+    { name: t('presentToday'), value: stats.present, color: '#10b981' },
+    { name: t('absent'), value: stats.absent, color: '#ef4444' },
   ];
 
   return (
@@ -92,7 +92,7 @@ const Dashboard = () => {
               </div>
             ))}
             {attendance.length === 0 && (
-                <p className="text-center text-slate-400 text-xs py-4">No records yet today.</p>
+                <p className="text-center text-slate-400 text-xs py-4">{t('noRecords')}</p>
             )}
           </div>
       </div>

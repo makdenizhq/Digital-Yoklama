@@ -12,7 +12,8 @@ import {
   ChevronRight,
   LogOut,
   School,
-  Users
+  Users,
+  Printer
 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 

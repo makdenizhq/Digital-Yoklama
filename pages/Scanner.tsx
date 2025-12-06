@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { useAppContext } from '../context/AppContext';
 import WebcamCapture from '../components/WebcamCapture';
@@ -30,7 +31,7 @@ const Scanner = () => {
         setStep('verifying_face');
         setRetryCount(0); // Reset retries on new QR scan
         
-        setFeedback("QR Detected! Look at the camera...");
+        setFeedback("QR Detected! " + t('lookAtCamera'));
         
         // Wait 1.5 seconds for user to switch
         setTimeout(() => {
@@ -65,9 +66,9 @@ const Scanner = () => {
             setStep('failure');
             
             if (newCount >= MAX_RETRIES) {
-                setFeedback("Verification Denied. Please contact administration.");
+                setFeedback(t('contactAdmin'));
             } else {
-                setFeedback(`No match. (${newCount}/${MAX_RETRIES})`);
+                setFeedback(t('noMatch') + ` (${newCount}/${MAX_RETRIES})`);
             }
         }
     } catch (err) {
@@ -86,7 +87,7 @@ const Scanner = () => {
       
       // Allow retry
       setStep('verifying_face');
-      setFeedback("Align your face...");
+      setFeedback(t('lookAtCamera'));
       // Wait 1s then capture
       setTimeout(() => {
           setTriggerCapture(true);
@@ -147,7 +148,7 @@ const Scanner = () => {
                         <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-blue-500 -mb-1 -ml-1 rounded-bl-xl"></div>
                         <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-blue-500 -mb-1 -mr-1 rounded-br-xl"></div>
                         <div className="absolute inset-0 flex items-center justify-center text-white/80 font-bold bg-black/20 backdrop-blur-[2px] rounded-2xl">
-                            SCAN QR
+                            {t('scanQr')}
                         </div>
                     </div>
                 )}
@@ -156,7 +157,7 @@ const Scanner = () => {
                      <div className="w-[30%] h-[50%] border-4 border-green-500/50 rounded-[50%] relative animate-pulse shadow-[0_0_50px_rgba(34,197,94,0.3)]">
                         <div className="absolute -top-12 w-full text-center">
                             <span className="bg-black/60 text-white px-4 py-1 rounded-full text-sm font-bold backdrop-blur-md">
-                                Look at Camera
+                                {t('lookAtCamera')}
                             </span>
                         </div>
                      </div>
@@ -171,23 +172,23 @@ const Scanner = () => {
                             // MAX RETRIES REACHED
                             <div className="bg-red-900/50 p-8 rounded-3xl border border-red-500/50">
                                 <ShieldAlert size={64} className="text-red-500 mx-auto mb-4" />
-                                <h3 className="text-2xl font-black text-white mb-2">ACCESS DENIED</h3>
+                                <h3 className="text-2xl font-black text-white mb-2">{t('accessDenied')}</h3>
                                 <p className="text-red-200 mb-6 font-medium">Verification failed {MAX_RETRIES} times.</p>
                                 <div className="bg-red-950 p-4 rounded-xl border border-red-900 mb-6">
-                                    <p className="text-red-400 font-bold text-sm uppercase tracking-wide">Please Contact Administration</p>
+                                    <p className="text-red-400 font-bold text-sm uppercase tracking-wide">{t('contactAdmin')}</p>
                                 </div>
                                 <button 
                                     onClick={resetScanner} 
                                     className="bg-white text-red-900 px-8 py-3 rounded-xl font-bold hover:bg-red-50 transition pointer-events-auto"
                                 >
-                                    Back to Scanning
+                                    {t('backToScanning')}
                                 </button>
                             </div>
                         ) : (
                             // RETRY ALLOWED
                             <div className="bg-red-600 p-8 rounded-3xl shadow-2xl pointer-events-auto">
                                 <XCircle size={64} className="text-white mx-auto mb-4" />
-                                <h3 className="text-2xl font-black text-white mb-2">NO MATCH FOUND</h3>
+                                <h3 className="text-2xl font-black text-white mb-2">{t('noMatch')}</h3>
                                 <p className="text-red-100 mb-8 font-medium">
                                     The face does not match the record for <b>{identifiedStudent?.firstName}</b>.
                                 </p>
@@ -195,7 +196,7 @@ const Scanner = () => {
                                     onClick={handleRetry} 
                                     className="w-full bg-white text-red-600 px-8 py-4 rounded-xl font-bold hover:bg-red-50 transition flex items-center justify-center gap-3 text-lg"
                                 >
-                                    <RefreshCcw size={20}/> Try Again ({retryCount}/{MAX_RETRIES})
+                                    <RefreshCcw size={20}/> {t('tryAgain')} ({retryCount}/{MAX_RETRIES})
                                 </button>
                             </div>
                         )}

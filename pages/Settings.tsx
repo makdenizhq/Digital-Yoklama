@@ -28,12 +28,12 @@ const Settings = () => {
   const [isAddRoleMode, setIsAddRoleMode] = useState(false);
 
   const availablePermissions: {id: UserPermission, label: string}[] = [
-      { id: 'dashboard', label: 'Dashboard' },
-      { id: 'scan', label: 'Attendance Scanner' },
-      { id: 'register', label: 'Student Registration' },
-      { id: 'students', label: 'Student Management' },
-      { id: 'reports', label: 'Reports & Analytics' },
-      { id: 'settings', label: 'System Settings' },
+      { id: 'dashboard', label: t('dashboard') },
+      { id: 'scan', label: t('scan') },
+      { id: 'register', label: t('register') },
+      { id: 'students', label: t('students') },
+      { id: 'reports', label: t('reports') },
+      { id: 'settings', label: t('settings') },
   ];
 
   // Fallback default permissions if not in settings
@@ -52,7 +52,7 @@ const Settings = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     updateSettings(formData);
-    setMsg('Settings saved successfully!');
+    setMsg(t('settings') + ' ' + t('save'));
     setTimeout(() => setMsg(''), 3000);
   };
 
@@ -159,12 +159,12 @@ const Settings = () => {
       <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
         <h2 className="text-xl font-bold text-slate-800 mb-4">{t('settings')}</h2>
         <div className="flex gap-1 border-b border-slate-100 overflow-x-auto">
-            <TabButton active={activeTab === 'general'} onClick={() => setActiveTab('general')} label="General" icon={Building} />
+            <TabButton active={activeTab === 'general'} onClick={() => setActiveTab('general')} label={t('general')} icon={Building} />
             {currentUser?.role === 'admin' && (
                 <>
-                <TabButton active={activeTab === 'users'} onClick={() => setActiveTab('users')} label="Users" icon={Users} />
-                <TabButton active={activeTab === 'roles'} onClick={() => setActiveTab('roles')} label="Roles & Permissions" icon={Shield} />
-                <TabButton active={activeTab === 'logs'} onClick={() => setActiveTab('logs')} label="Logs" icon={FileText} />
+                <TabButton active={activeTab === 'users'} onClick={() => setActiveTab('users')} label={t('users')} icon={Users} />
+                <TabButton active={activeTab === 'roles'} onClick={() => setActiveTab('roles')} label={t('roles')} icon={Shield} />
+                <TabButton active={activeTab === 'logs'} onClick={() => setActiveTab('logs')} label={t('logs')} icon={FileText} />
                 </>
             )}
         </div>
@@ -175,7 +175,39 @@ const Settings = () => {
         <form onSubmit={handleSubmit} className="bg-white p-5 rounded-xl shadow-sm border border-slate-100 space-y-6 animate-in fade-in">
             <div className="space-y-3">
                 <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide flex items-center gap-2">
-                    <Hash size={16} /> ID Generation
+                    <Globe size={16} /> {t('language')}
+                </h3>
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    <div className="flex gap-4">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                            <input 
+                                type="radio" 
+                                name="language" 
+                                value="en" 
+                                checked={formData.language === 'en'} 
+                                onChange={handleChange} 
+                                className="text-blue-600 focus:ring-blue-500"
+                            />
+                            <span className="text-sm font-bold text-slate-700">{t('english')}</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                            <input 
+                                type="radio" 
+                                name="language" 
+                                value="tr" 
+                                checked={formData.language === 'tr'} 
+                                onChange={handleChange} 
+                                className="text-blue-600 focus:ring-blue-500"
+                            />
+                            <span className="text-sm font-bold text-slate-700">{t('turkish')}</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div className="space-y-3">
+                <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide flex items-center gap-2">
+                    <Hash size={16} /> {t('idGeneration')}
                 </h3>
                 <div className="bg-slate-50 p-4 rounded-xl space-y-4 border border-slate-200">
                      <div>
@@ -209,16 +241,16 @@ const Settings = () => {
 
             <div className="space-y-3 pt-2 border-t border-slate-100">
                 <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide flex items-center gap-2">
-                    <Building size={16} /> School Info
+                    <Building size={16} /> {t('schoolInfo')}
                 </h3>
                 
                 <div className="space-y-3">
-                    <input name="schoolName" value={formData.schoolName} onChange={handleChange} className="w-full px-3 py-2 text-sm border rounded-lg" placeholder="School Name"/>
-                    <input name="schoolAddress" value={formData.schoolAddress} onChange={handleChange} className="w-full px-3 py-2 text-sm border rounded-lg" placeholder="Address"/>
-                    <input name="contactPhone" value={formData.contactPhone} onChange={handleChange} className="w-full px-3 py-2 text-sm border rounded-lg" placeholder="Phone"/>
+                    <input name="schoolName" value={formData.schoolName} onChange={handleChange} className="w-full px-3 py-2 text-sm border rounded-lg" placeholder={t('schoolName')}/>
+                    <input name="schoolAddress" value={formData.schoolAddress} onChange={handleChange} className="w-full px-3 py-2 text-sm border rounded-lg" placeholder={t('schoolAddress')}/>
+                    <input name="contactPhone" value={formData.contactPhone} onChange={handleChange} className="w-full px-3 py-2 text-sm border rounded-lg" placeholder={t('phone')}/>
                     
                     <ImageUploader 
-                        label="School Logo" 
+                        label={t('schoolLogo')} 
                         image={formData.schoolLogoUrl} 
                         onImageChange={(base64) => setFormData({...formData, schoolLogoUrl: base64})}
                         onRemove={() => setFormData({...formData, schoolLogoUrl: ''})}
@@ -233,7 +265,7 @@ const Settings = () => {
 
              <div className="pt-6 border-t border-slate-100">
                 <button type="button" onClick={logout} className="w-full py-3 bg-red-50 text-red-600 rounded-lg font-bold hover:bg-red-100 transition flex items-center justify-center gap-2 text-sm">
-                    <LogOut size={18} /> Logout
+                    <LogOut size={18} /> {t('logout')}
                 </button>
             </div>
         </form>
@@ -245,32 +277,32 @@ const Settings = () => {
               
               {/* Active / Archive Toggle */}
               <div className="flex justify-end gap-2">
-                  <button onClick={() => setUserViewMode('active')} className={`px-3 py-1.5 text-xs font-bold rounded-lg ${userViewMode === 'active' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-500'}`}>Active Users</button>
-                  <button onClick={() => setUserViewMode('archived')} className={`px-3 py-1.5 text-xs font-bold rounded-lg ${userViewMode === 'archived' ? 'bg-orange-500 text-white' : 'bg-slate-100 text-slate-500'}`}>Archived</button>
+                  <button onClick={() => setUserViewMode('active')} className={`px-3 py-1.5 text-xs font-bold rounded-lg ${userViewMode === 'active' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-500'}`}>{t('active')}</button>
+                  <button onClick={() => setUserViewMode('archived')} className={`px-3 py-1.5 text-xs font-bold rounded-lg ${userViewMode === 'archived' ? 'bg-orange-500 text-white' : 'bg-slate-100 text-slate-500'}`}>{t('archived')}</button>
               </div>
 
               {/* Create User Form */}
               {userViewMode === 'active' && (
                 <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-100">
-                    <h3 className="text-sm font-bold mb-4 flex items-center gap-2"><Plus size={16}/> Add User</h3>
+                    <h3 className="text-sm font-bold mb-4 flex items-center gap-2"><Plus size={16}/> {t('addUser')}</h3>
                     <form onSubmit={handleCreateUser} className="space-y-4">
                         <div className="grid grid-cols-2 gap-4">
-                            <input required placeholder="Username" className="w-full px-3 py-2 text-sm border rounded-lg" value={newUser.username} onChange={e => setNewUser({...newUser, username: e.target.value})} />
-                            <input required placeholder="Password" type="password" className="w-full px-3 py-2 text-sm border rounded-lg" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} />
+                            <input required placeholder={t('username')} className="w-full px-3 py-2 text-sm border rounded-lg" value={newUser.username} onChange={e => setNewUser({...newUser, username: e.target.value})} />
+                            <input required placeholder={t('password')} type="password" className="w-full px-3 py-2 text-sm border rounded-lg" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
-                            <input required placeholder="Full Name" className="px-3 py-2 text-sm border rounded-lg" value={newUser.fullName} onChange={e => setNewUser({...newUser, fullName: e.target.value})} />
-                            <input required placeholder="Job Title (e.g. Math Teacher)" className="px-3 py-2 text-sm border rounded-lg" value={newUser.title} onChange={e => setNewUser({...newUser, title: e.target.value})} />
+                            <input required placeholder={t('fullName')} className="px-3 py-2 text-sm border rounded-lg" value={newUser.fullName} onChange={e => setNewUser({...newUser, fullName: e.target.value})} />
+                            <input required placeholder={t('jobTitle')} className="px-3 py-2 text-sm border rounded-lg" value={newUser.title} onChange={e => setNewUser({...newUser, title: e.target.value})} />
                         </div>
                         <div className="grid grid-cols-1">
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Access Role</label>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('role')}</label>
                             <select className="px-3 py-2 text-sm border rounded-lg capitalize" value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value as UserRole})}>
                                 {settings.roles.map(r => (
                                     <option key={r} value={r}>{r.replace('_', ' ')}</option>
                                 ))}
                             </select>
                         </div>
-                        <button type="submit" className="w-full bg-slate-900 text-white py-2 rounded-lg font-bold text-sm hover:bg-slate-800">Create User</button>
+                        <button type="submit" className="w-full bg-slate-900 text-white py-2 rounded-lg font-bold text-sm hover:bg-slate-800">{t('add')}</button>
                     </form>
                 </div>
               )}
@@ -296,21 +328,21 @@ const Settings = () => {
                           <div className="flex gap-2">
                              {userViewMode === 'active' ? (
                                 <>
-                                    <button onClick={() => setEditingUser(u)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Edit">
+                                    <button onClick={() => setEditingUser(u)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" title={t('edit')}>
                                         <Edit size={16}/>
                                     </button>
                                     {u.id !== '1' && u.id !== currentUser.id && (
-                                        <button onClick={() => deleteUser(u.id)} className="text-red-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition" title="Archive">
+                                        <button onClick={() => deleteUser(u.id)} className="text-red-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition" title={t('archive')}>
                                             <Trash2 size={16}/>
                                         </button>
                                     )}
                                 </>
                              ) : (
                                 <>
-                                    <button onClick={() => restoreUser(u.id)} className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition" title="Restore">
+                                    <button onClick={() => restoreUser(u.id)} className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition" title={t('restore')}>
                                         <RefreshCcw size={16}/>
                                     </button>
-                                    <button onClick={() => { if(confirm("Permanent Delete?")) deleteUserPermanently(u.id); }} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title="Delete Permanently">
+                                    <button onClick={() => { if(confirm("Permanent Delete?")) deleteUserPermanently(u.id); }} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title={t('delete')}>
                                         <X size={16}/>
                                     </button>
                                 </>
@@ -329,7 +361,7 @@ const Settings = () => {
               {/* Roles Sidebar */}
               <div className="md:col-span-1 bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden flex flex-col">
                   <div className="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
-                      <h3 className="font-bold text-slate-800 flex items-center gap-2 text-sm"><Shield size={16}/> Roles</h3>
+                      <h3 className="font-bold text-slate-800 flex items-center gap-2 text-sm"><Shield size={16}/> {t('roles')}</h3>
                       <button onClick={() => setIsAddRoleMode(true)} className="p-1 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition"><Plus size={16}/></button>
                   </div>
                   
@@ -343,8 +375,8 @@ const Settings = () => {
                             onChange={e => setNewRoleName(e.target.value)}
                           />
                           <div className="flex gap-2">
-                              <button type="submit" className="flex-1 bg-blue-600 text-white text-[10px] py-1 rounded font-bold">Add</button>
-                              <button type="button" onClick={() => setIsAddRoleMode(false)} className="flex-1 bg-slate-200 text-slate-600 text-[10px] py-1 rounded font-bold">Cancel</button>
+                              <button type="submit" className="flex-1 bg-blue-600 text-white text-[10px] py-1 rounded font-bold">{t('add')}</button>
+                              <button type="button" onClick={() => setIsAddRoleMode(false)} className="flex-1 bg-slate-200 text-slate-600 text-[10px] py-1 rounded font-bold">{t('cancel')}</button>
                           </div>
                       </form>
                   )}
@@ -386,22 +418,22 @@ const Settings = () => {
                       <div className="flex gap-2">
                         {isEditingPermissions ? (
                             <>
-                                <button onClick={cancelEditPermissions} className="bg-slate-200 text-slate-700 px-4 py-2 rounded-lg text-xs font-bold hover:bg-slate-300 transition">Cancel</button>
-                                <button onClick={savePermissions} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-blue-700 transition"><Save size={14}/> Save Permissions</button>
+                                <button onClick={cancelEditPermissions} className="bg-slate-200 text-slate-700 px-4 py-2 rounded-lg text-xs font-bold hover:bg-slate-300 transition">{t('cancel')}</button>
+                                <button onClick={savePermissions} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-blue-700 transition"><Save size={14}/> {t('savePermissions')}</button>
                             </>
                         ) : (
                             <button 
                                 onClick={startEditingPermissions}
                                 className="bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-slate-50 transition shadow-sm"
                             >
-                                <Edit size={14}/> Edit Permissions
+                                <Edit size={14}/> {t('editPermissions')}
                             </button>
                         )}
                         <button 
                             onClick={() => setIsAssignUserModalOpen(true)}
                             className="bg-slate-900 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-slate-800 transition"
                         >
-                            <UserPlus size={14}/> Assign User
+                            <UserPlus size={14}/> {t('assignUser')}
                         </button>
                       </div>
                   </div>
@@ -410,7 +442,7 @@ const Settings = () => {
                       
                       {/* Permissions View */}
                       <div>
-                          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Effective Permissions</h4>
+                          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">{t('effectivePermissions')}</h4>
                           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                               {availablePermissions.map(perm => {
                                   const currentPerms = settings.rolePermissions?.[selectedRole] || roleDefaultPermissions[selectedRole] || roleDefaultPermissions['staff'];
@@ -479,7 +511,7 @@ const Settings = () => {
           <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
               <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl flex flex-col max-h-[80vh]">
                   <div className="p-5 border-b border-slate-100 flex justify-between items-center">
-                      <h3 className="font-bold text-slate-800">Assign to {selectedRole.replace('_', ' ')}</h3>
+                      <h3 className="font-bold text-slate-800">{t('assignUser')}</h3>
                       <button onClick={() => setIsAssignUserModalOpen(false)}><X size={20}/></button>
                   </div>
                   <div className="flex-1 overflow-y-auto p-2">
@@ -515,22 +547,22 @@ const Settings = () => {
           <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
               <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
                   <div className="flex justify-between items-center p-6 border-b border-slate-100">
-                      <h3 className="text-lg font-bold text-slate-800">Edit User</h3>
+                      <h3 className="text-lg font-bold text-slate-800">{t('editUser')}</h3>
                       <button onClick={() => setEditingUser(null)}><X size={20}/></button>
                   </div>
                   
                   <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
                     <form onSubmit={handleUpdateUser} className="space-y-4">
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Full Name</label>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('fullName')}</label>
                             <input required className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" value={editingUser.fullName} onChange={e => setEditingUser({...editingUser, fullName: e.target.value})} />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Job Title</label>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('jobTitle')}</label>
                             <input required className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" value={editingUser.title} onChange={e => setEditingUser({...editingUser, title: e.target.value})} />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Role</label>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('role')}</label>
                             <select className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm capitalize" value={editingUser.role} onChange={e => setEditingUser({...editingUser, role: e.target.value as UserRole})}>
                                 {settings.roles.map(r => (
                                     <option key={r} value={r}>{r.replace('_', ' ')}</option>
@@ -538,7 +570,7 @@ const Settings = () => {
                             </select>
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Password</label>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('password')}</label>
                             <input className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" placeholder="New Password (optional)" onChange={e => setEditingUser({...editingUser, password: e.target.value})} />
                         </div>
 
@@ -560,7 +592,7 @@ const Settings = () => {
                             </div>
                         </div>
 
-                        <button type="submit" className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl mt-4 hover:bg-blue-700">Update User</button>
+                        <button type="submit" className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl mt-4 hover:bg-blue-700">{t('update')}</button>
                     </form>
                   </div>
               </div>
