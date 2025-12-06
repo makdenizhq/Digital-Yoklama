@@ -55,6 +55,7 @@ export interface ScheduleItem {
   period: number; // 1-8
   subject: string;
   teacher?: string;
+  topic?: string; // New field for lesson topic
 }
 
 // --- FINANCE TYPES ---
@@ -87,6 +88,8 @@ export interface FeeType {
 }
 
 // --- TASK TYPES ---
+export type TaskPriority = 'high' | 'medium' | 'normal' | 'low';
+
 export interface Task {
   id: string;
   title: string;
@@ -95,8 +98,18 @@ export interface Task {
   dueDate: string; // ISO Date
   reminder: boolean; // Alarm Toggle
   reminderDate?: string; // ISO Date Time for specific alarm
+  priority: TaskPriority; // New field
   assignedTo: string[]; // Array of User IDs or Student IDs
   createdBy: string;
+  completedBy?: string; // Who finished it
+}
+
+export interface AppNotification {
+    id: string;
+    message: string;
+    type: 'info' | 'alert' | 'success';
+    read: boolean;
+    timestamp: number;
 }
 
 export type IdGenerationFormat = 'standard' | 'school_prefix' | 'grade_prefix';
@@ -113,7 +126,7 @@ export interface SchoolSettings {
   roles: string[]; 
   rolePermissions?: Record<string, UserPermission[]>;
   isPaidSchool?: boolean;
-  feeStructure: FeeType[]; // Changed from fixed object to array
+  feeStructure: FeeType[]; 
 }
 
 export type UserRole = string; 

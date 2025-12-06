@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Student, AttendanceRecord, SchoolSettings, User, AuditLog, UserRole, UserPermission, Grade, Payment, Task, Expense } from '../types';
+import { Student, AttendanceRecord, SchoolSettings, User, AuditLog, UserRole, UserPermission, Grade, Payment, Task, Expense, AppNotification } from '../types';
 
 interface AppContextType {
   // Auth & Users
@@ -19,10 +19,11 @@ interface AppContextType {
   attendance: AttendanceRecord[];
   grades: Grade[];
   payments: Payment[];
-  expenses: Expense[]; // New
-  tasks: Task[]; // New
+  expenses: Expense[]; 
+  tasks: Task[]; 
   settings: SchoolSettings;
   logs: AuditLog[];
+  notifications: AppNotification[];
   
   // Actions
   addStudent: (student: Student) => void;
@@ -33,13 +34,13 @@ interface AppContextType {
   
   markAttendance: (studentId: string, method: 'face_match' | 'manual_override', confidence?: number, liveImage?: string) => void;
   addPayment: (payment: Payment) => void;
-  addExpense: (expense: Expense) => void; // New
-  deleteExpense: (id: string) => void; // New
+  addExpense: (expense: Expense) => void;
+  deleteExpense: (id: string) => void; 
   addGrade: (grade: Grade) => void;
   
-  addTask: (task: Task) => void; // New
-  updateTask: (task: Task) => void; // New
-  deleteTask: (id: string) => void; // New
+  addTask: (task: Task) => void;
+  updateTask: (task: Task) => void;
+  deleteTask: (id: string) => void;
 
   getStudent: (id: string) => Student | undefined;
   updateSettings: (settings: SchoolSettings) => void;
@@ -47,6 +48,10 @@ interface AppContextType {
   addRole: (roleName: string) => void; 
   deleteRole: (roleName: string) => void; 
   generateStudentId: (gradeLevel?: string, section?: string) => string;
+  
+  addNotification: (msg: string, type: 'info'|'alert'|'success') => void;
+  markNotificationRead: (id: string) => void;
+  
   t: (key: string) => string;
 }
 
@@ -105,14 +110,13 @@ const SIMPLE_ADMIN: User = {
 
 const DICTIONARY: Record<string, Record<string, string>> = {
   en: {
-    // ... existing ...
     dashboard: "Dashboard",
     attendance: "Attendance",
     scan: "Scan",
     register: "Register",
     students: "Student Management",
     reports: "Reports",
-    education: "Education",
+    education: "Education & Evaluation",
     calendar: "Calendar & Tasks",
     settings: "Settings",
     profile: "Profile",
@@ -139,8 +143,14 @@ const DICTIONARY: Record<string, Record<string, string>> = {
     reminder: "Reminder",
     completed: "Completed",
     addTask: "Add Task",
+    editTask: "Edit Task",
     myTasks: "My Tasks",
     assignedTasks: "Assigned Tasks",
+    priority: "Priority",
+    high: "High",
+    medium: "Medium",
+    normal: "Normal",
+    low: "Low",
 
     // Common
     save: "Save",
@@ -152,17 +162,24 @@ const DICTIONARY: Record<string, Record<string, string>> = {
     remove: "Remove",
     update: "Update",
     add: "Add",
-    // ... other keys ...
+    
+    // Corrected Casing
+    studentList: "Student List",
+    newRegistration: "New Registration",
+    attendanceRate: "Attendance Rate",
+    presentToday: "Present Today",
+    recentActivity: "Recent Activity",
+    totalStudents: "Total Students",
+    noRecords: "No records found"
   },
   tr: {
-    // ... existing ...
     dashboard: "Panel",
     attendance: "Yoklama Takibi",
     scan: "Tarama",
     register: "Kayıt",
     students: "Öğrenci Yönetimi",
     reports: "Raporlar",
-    education: "Eğitim & Değ.",
+    education: "Eğitim & Değerlendirme",
     calendar: "Takvim & Görevler",
     settings: "Ayarlar",
     profile: "Profil",
@@ -189,8 +206,14 @@ const DICTIONARY: Record<string, Record<string, string>> = {
     reminder: "Hatırlatıcı",
     completed: "Tamamlandı",
     addTask: "Görev Ekle",
+    editTask: "Görevi Düzenle",
     myTasks: "Görevlerim",
     assignedTasks: "Atanan Görevler",
+    priority: "Önem Derecesi",
+    high: "Yüksek",
+    medium: "Orta",
+    normal: "Normal",
+    low: "Düşük",
 
     // Common
     save: "Kaydet",
@@ -202,7 +225,15 @@ const DICTIONARY: Record<string, Record<string, string>> = {
     remove: "Kaldır",
     update: "Güncelle",
     add: "Ekle",
-    // ... other keys ...
+
+    // Corrected Casing
+    studentList: "Öğrenci Listesi",
+    newRegistration: "Yeni Kayıt",
+    attendanceRate: "Katılım Oranı",
+    presentToday: "Bugün Gelenler",
+    recentActivity: "Son Aktiviteler",
+    totalStudents: "Toplam Öğrenci",
+    noRecords: "Kayıt bulunamadı"
   }
 };
 
@@ -216,10 +247,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const saved = localStorage.getItem('attendai_settings');
     const parsed = saved ? JSON.parse(saved) : INITIAL_SETTINGS;
     
-    // Migration: Convert old fee structure if it exists as object
     let fees = INITIAL_SETTINGS.feeStructure;
     if (parsed.feeStructure && !Array.isArray(parsed.feeStructure)) {
-        // Convert old object {tuition: 5000} to array
         fees = Object.keys(parsed.feeStructure).map((key, i) => ({
             id: i.toString(),
             name: key.charAt(0).toUpperCase() + key.slice(1),
@@ -250,6 +279,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
     return parsed;
   });
+
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
 
   const [logs, setLogs] = useState<AuditLog[]>(() => {
     const saved = localStorage.getItem('attendai_logs');
@@ -389,8 +420,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const deleteExpense = (id: string) => { setExpenses(prev => prev.filter(e => e.id !== id)); };
 
   const addTask = (t: Task) => { setTasks(prev => [...prev, t]); logAction("ADD_TASK", t.title); };
-  const updateTask = (t: Task) => { setTasks(prev => prev.map(x => x.id === t.id ? t : x)); };
+  
+  const updateTask = (t: Task) => {
+      // Check for completion notification
+      if (t.status === 'completed' && t.type === 'task' && currentUser && t.createdBy !== currentUser.id) {
+          addNotification(`Task "${t.title}" was completed by ${currentUser.fullName}`, 'success');
+      }
+      setTasks(prev => prev.map(x => x.id === t.id ? t : x)); 
+  };
+  
   const deleteTask = (id: string) => { setTasks(prev => prev.filter(t => t.id !== id)); };
+
+  const addNotification = (msg: string, type: 'info'|'alert'|'success') => {
+      setNotifications(prev => [{ id: Date.now().toString(), message: msg, type, read: false, timestamp: Date.now() }, ...prev]);
+  };
+  const markNotificationRead = (id: string) => {
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+  };
 
   const getStudent = (id: string) => students.find(s => s.id === id);
   const updateSettings = (s: SchoolSettings) => { setSettings(s); logAction("UPDATE_SETTINGS", "System settings"); };
@@ -404,15 +450,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       return settings.idFormat === 'grade_prefix' ? `${gradeLevel}${section}${seq}` : settings.idFormat === 'standard' ? `${year}${gradeLevel}${seq}` : `${settings.schoolPrefix || 'SCH'}${year}${seq}`;
   };
 
-  const t = (key: string) => DICTIONARY[settings.language]?.[key] || key; // Helper to get translation or fallback to key
+  const t = (key: string) => DICTIONARY[settings.language]?.[key] || key; 
 
   return (
     <AppContext.Provider value={{ 
       currentUser, users, login, logout, updateUser, addUser, deleteUser, restoreUser, deleteUserPermanently, logs,
-      students, attendance, grades, payments, expenses, tasks, settings, 
+      students, attendance, grades, payments, expenses, tasks, settings, notifications,
       addStudent, updateStudent, deleteStudent, restoreStudent, deleteStudentPermanently,
       markAttendance, addPayment, addGrade, addExpense, deleteExpense, addTask, updateTask, deleteTask,
-      getStudent, updateSettings, updateRolePermissions, addRole, deleteRole, generateStudentId, t 
+      getStudent, updateSettings, updateRolePermissions, addRole, deleteRole, generateStudentId, t,
+      addNotification, markNotificationRead
     }}>
       {children}
     </AppContext.Provider>

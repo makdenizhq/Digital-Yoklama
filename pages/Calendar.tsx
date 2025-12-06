@@ -1,28 +1,40 @@
 
 import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { Calendar as CalendarIcon, CheckSquare, Plus, Clock, Users, Bell, Trash2, X } from 'lucide-react';
-import { Task } from '../types';
+import { Calendar as CalendarIcon, CheckSquare, Plus, Clock, Users, Bell, Trash2, X, Edit, AlertCircle } from 'lucide-react';
+import { Task, TaskPriority } from '../types';
 
 const CalendarPage = () => {
   const { t, tasks, addTask, updateTask, deleteTask, currentUser, users, students } = useAppContext();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showAddModal, setShowAddModal] = useState(false);
-  const [newTask, setNewTask] = useState<Partial<Task>>({ 
+  
+  // Task Editing State
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  
+  const initialTaskState: Partial<Task> = { 
       type: 'todo', 
       reminder: false, 
       assignedTo: [], 
-      dueDate: new Date().toISOString() 
-  });
+      priority: 'normal',
+      dueDate: new Date().toISOString().split('T')[0] 
+  };
+  const [newTask, setNewTask] = useState<Partial<Task>>(initialTaskState);
   
-  // Tab State for Task List
   const [listTab, setListTab] = useState<'my' | 'assigned'>('my');
 
   // Helpers
   const getDaysInMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
   const getFirstDayOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth(), 1).getDay();
 
-  // Tasks Filtered for Calendar
+  // Mock Holidays (Should ideally come from context/settings)
+  const HOLIDAYS: Record<string, string> = {
+      '1-1': 'New Year',
+      '23-4': 'Childrens Day',
+      '19-5': 'Youth Day',
+      '29-10': 'Republic Day'
+  };
+
   const getTasksForDate = (day: number) => {
       return tasks.filter(t => {
           const d = new Date(t.dueDate);
@@ -30,23 +42,54 @@ const CalendarPage = () => {
       });
   };
 
-  const handleAddTask = (e: React.FormEvent) => {
+  const handleSaveTask = (e: React.FormEvent) => {
       e.preventDefault();
       if(newTask.title) {
-          addTask({
-              id: Date.now().toString(),
-              title: newTask.title,
-              type: newTask.type as any,
-              status: 'pending',
-              dueDate: newTask.dueDate!,
-              reminder: newTask.reminder!,
-              reminderDate: newTask.reminderDate, // New Field
-              assignedTo: newTask.assignedTo!,
-              createdBy: currentUser?.id || 'sys'
-          });
+          if (editingTask) {
+              // Update
+              updateTask({
+                  ...editingTask,
+                  title: newTask.title,
+                  type: newTask.type as any,
+                  dueDate: newTask.dueDate!,
+                  reminder: newTask.reminder!,
+                  reminderDate: newTask.reminderDate,
+                  assignedTo: newTask.assignedTo!,
+                  priority: newTask.priority as TaskPriority
+              });
+              setEditingTask(null);
+          } else {
+              // Create
+              addTask({
+                  id: Date.now().toString(),
+                  title: newTask.title,
+                  type: newTask.type as any,
+                  status: 'pending',
+                  dueDate: newTask.dueDate!,
+                  reminder: newTask.reminder!,
+                  reminderDate: newTask.reminderDate, 
+                  assignedTo: newTask.assignedTo!,
+                  priority: newTask.priority as TaskPriority || 'normal',
+                  createdBy: currentUser?.id || 'sys'
+              });
+          }
           setShowAddModal(false);
-          setNewTask({ type: 'todo', reminder: false, assignedTo: [], dueDate: new Date().toISOString() });
+          setNewTask(initialTaskState);
       }
+  };
+
+  const openEditModal = (task: Task) => {
+      setEditingTask(task);
+      setNewTask({
+          title: task.title,
+          type: task.type,
+          dueDate: task.dueDate.split('T')[0],
+          reminder: task.reminder,
+          reminderDate: task.reminderDate,
+          assignedTo: task.assignedTo,
+          priority: task.priority
+      });
+      setShowAddModal(true);
   };
 
   const toggleTask = (t: Task) => {
@@ -58,8 +101,15 @@ const CalendarPage = () => {
 
   const displayTasks = listTab === 'my' ? myTasks : assignedTasks;
 
+  const priorityColors = {
+      high: 'bg-red-500',
+      medium: 'bg-orange-500',
+      normal: 'bg-blue-500',
+      low: 'bg-slate-400'
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-8">
         <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center gap-3">
             <div className="p-2 bg-pink-100 text-pink-600 rounded-lg">
                 <CalendarIcon size={24} />
@@ -94,13 +144,16 @@ const CalendarPage = () => {
                         const day = i + 1;
                         const dayTasks = getTasksForDate(day);
                         const isToday = day === new Date().getDate() && selectedDate.getMonth() === new Date().getMonth();
+                        const holidayKey = `${day}-${selectedDate.getMonth()+1}`;
+                        const isHoliday = HOLIDAYS[holidayKey];
                         
                         return (
                             <div 
                                 key={day} 
                                 onClick={() => { 
+                                    setEditingTask(null);
                                     const d = new Date(selectedDate); d.setDate(day); 
-                                    setNewTask({...newTask, dueDate: d.toISOString().split('T')[0]}); 
+                                    setNewTask({...initialTaskState, dueDate: d.toISOString().split('T')[0]}); 
                                     setShowAddModal(true); 
                                 }}
                                 className={`
@@ -108,12 +161,14 @@ const CalendarPage = () => {
                                     hover:border-blue-300 hover:shadow-md
                                     ${dayTasks.length > 0 ? 'bg-blue-50/50 border-blue-100' : 'bg-transparent border-transparent'}
                                     ${isToday ? 'ring-2 ring-blue-500 bg-blue-50' : ''}
+                                    ${isHoliday ? 'bg-red-50 border-red-200' : ''}
                                 `}
                             >
-                                <span className={isToday ? 'text-blue-600 font-bold' : 'text-slate-700'}>{day}</span>
+                                <span className={`${isToday ? 'text-blue-600 font-bold' : isHoliday ? 'text-red-500 font-bold' : 'text-slate-700'}`}>{day}</span>
+                                {isHoliday && <span className="text-[8px] text-red-400 font-bold uppercase tracking-tighter truncate w-full text-center px-1">{isHoliday}</span>}
                                 <div className="flex gap-1 mt-1 flex-wrap justify-center px-1">
-                                    {dayTasks.slice(0, 4).map(t => (
-                                        <div key={t.id} className={`w-1.5 h-1.5 rounded-full ${t.type === 'todo' ? 'bg-green-500' : 'bg-purple-500'}`} title={t.title}></div>
+                                    {dayTasks.slice(0, 6).map(t => (
+                                        <div key={t.id} className={`w-2 h-2 rounded-full ${t.type === 'todo' ? 'bg-green-500' : 'bg-purple-500'}`} title={t.title}></div>
                                     ))}
                                 </div>
                             </div>
@@ -123,34 +178,36 @@ const CalendarPage = () => {
             </div>
 
             {/* Task List */}
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col h-full">
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col h-full max-h-[600px]">
                 <div className="flex justify-between items-center mb-4">
                     <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
                         <CheckSquare size={16} className="text-green-500"/> Tasks
                     </h3>
-                    <button onClick={() => setShowAddModal(true)} className="p-1 bg-slate-100 hover:bg-slate-200 rounded text-slate-600 transition"><Plus size={16}/></button>
+                    <button onClick={() => { setEditingTask(null); setNewTask(initialTaskState); setShowAddModal(true); }} className="p-1 bg-slate-100 hover:bg-slate-200 rounded text-slate-600 transition"><Plus size={16}/></button>
                 </div>
 
-                <div className="flex gap-1 bg-slate-100 p-1 rounded-lg mb-4">
+                <div className="flex gap-1 bg-slate-100 p-1 rounded-lg mb-4 flex-shrink-0">
                     <button onClick={() => setListTab('my')} className={`flex-1 py-1 text-xs font-bold rounded ${listTab === 'my' ? 'bg-white shadow text-slate-800' : 'text-slate-500'}`}>{t('myTasks')}</button>
                     <button onClick={() => setListTab('assigned')} className={`flex-1 py-1 text-xs font-bold rounded ${listTab === 'assigned' ? 'bg-white shadow text-slate-800' : 'text-slate-500'}`}>{t('assignedTasks')}</button>
                 </div>
 
-                <div className="space-y-3 flex-1 overflow-y-auto custom-scrollbar">
+                <div className="space-y-3 flex-1 overflow-y-auto custom-scrollbar pr-2">
                     {displayTasks.length === 0 ? <p className="text-center text-slate-400 text-xs py-4">No tasks found.</p> : displayTasks.map(task => (
                         <div 
                             key={task.id} 
-                            className={`p-3 rounded-xl border flex items-center gap-3 transition select-none group
+                            className={`p-3 rounded-xl border flex items-center gap-3 transition select-none group relative
                                 ${task.status === 'completed' ? 'bg-slate-50 border-slate-100 opacity-60' : 'bg-white border-slate-200 hover:border-blue-300 shadow-sm'}
                             `}
                         >
-                            <div onClick={() => toggleTask(task)} className={`w-5 h-5 rounded-md flex items-center justify-center border cursor-pointer transition ${task.status === 'completed' ? 'bg-green-500 border-green-500 text-white' : 'border-slate-300'}`}>
+                            <div className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-l-xl ${priorityColors[task.priority || 'normal']}`}></div>
+                            <div onClick={() => toggleTask(task)} className={`w-5 h-5 rounded-md flex items-center justify-center border cursor-pointer transition ml-2 ${task.status === 'completed' ? 'bg-green-500 border-green-500 text-white' : 'border-slate-300'}`}>
                                 {task.status === 'completed' && <CheckSquare size={12}/>}
                             </div>
-                            <div className="flex-1">
+                            <div className="flex-1 cursor-pointer" onClick={() => openEditModal(task)}>
                                 <p className={`text-sm font-bold ${task.status === 'completed' ? 'line-through text-slate-400' : 'text-slate-800'}`}>{task.title}</p>
-                                <div className="flex items-center gap-2 mt-1">
+                                <div className="flex items-center gap-2 mt-1 flex-wrap">
                                     <span className={`text-[10px] px-1.5 py-0.5 rounded capitalize ${task.type === 'todo' ? 'bg-green-100 text-green-700' : 'bg-purple-100 text-purple-700'}`}>{task.type}</span>
+                                    {task.priority === 'high' && <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-700 font-bold uppercase">High</span>}
                                     {task.reminder && <Bell size={10} className="text-orange-500"/>}
                                     <span className="text-[10px] text-slate-400">{new Date(task.dueDate).toLocaleDateString()}</span>
                                 </div>
@@ -162,15 +219,15 @@ const CalendarPage = () => {
             </div>
         </div>
 
-        {/* Add Task Modal */}
+        {/* Add/Edit Task Modal */}
         {showAddModal && (
             <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
                 <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl p-6">
                     <div className="flex justify-between items-center mb-4 border-b border-slate-100 pb-3">
-                        <h3 className="font-bold text-lg text-slate-800">{t('addTask')}</h3>
+                        <h3 className="font-bold text-lg text-slate-800">{editingTask ? t('editTask') : t('addTask')}</h3>
                         <button onClick={() => setShowAddModal(false)}><X size={20} className="text-slate-400"/></button>
                     </div>
-                    <form onSubmit={handleAddTask} className="space-y-4">
+                    <form onSubmit={handleSaveTask} className="space-y-4">
                         <div>
                             <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Title</label>
                             <input required className="w-full border rounded-lg px-3 py-2 text-sm" value={newTask.title} onChange={e => setNewTask({...newTask, title: e.target.value})} placeholder="What needs to be done?" />
@@ -186,6 +243,22 @@ const CalendarPage = () => {
                             <div>
                                 <label className="text-xs font-bold text-slate-500 uppercase block mb-1">{t('dueDate')}</label>
                                 <input type="date" className="w-full border rounded-lg px-3 py-2 text-sm" value={newTask.dueDate} onChange={e => setNewTask({...newTask, dueDate: e.target.value})} />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="text-xs font-bold text-slate-500 uppercase block mb-1">{t('priority')}</label>
+                            <div className="flex gap-2">
+                                {['high', 'medium', 'normal', 'low'].map(p => (
+                                    <button 
+                                        type="button" 
+                                        key={p} 
+                                        onClick={() => setNewTask({...newTask, priority: p as any})}
+                                        className={`flex-1 py-2 text-xs font-bold rounded-lg capitalize border ${newTask.priority === p ? 'bg-slate-800 text-white border-slate-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                                    >
+                                        {t(p)}
+                                    </button>
+                                ))}
                             </div>
                         </div>
                         
@@ -204,10 +277,10 @@ const CalendarPage = () => {
                             </div>
                         )}
 
-                        <div className="space-y-2">
+                        <div className="space-y-2 bg-slate-50 p-3 rounded-lg border border-slate-100">
                             <div className="flex items-center gap-2">
                                 <input type="checkbox" id="reminder" checked={newTask.reminder} onChange={e => setNewTask({...newTask, reminder: e.target.checked})} className="rounded text-blue-600 focus:ring-blue-500" />
-                                <label htmlFor="reminder" className="text-sm font-medium text-slate-700">{t('reminder')}</label>
+                                <label htmlFor="reminder" className="text-sm font-medium text-slate-700 flex items-center gap-2"><Bell size={14}/> {t('reminder')}</label>
                             </div>
                             {newTask.reminder && (
                                 <input 
@@ -219,7 +292,7 @@ const CalendarPage = () => {
                             )}
                         </div>
 
-                        <button type="submit" className="w-full bg-slate-900 text-white py-3 rounded-lg font-bold text-sm hover:bg-slate-800 transition">{t('add')}</button>
+                        <button type="submit" className="w-full bg-slate-900 text-white py-3 rounded-lg font-bold text-sm hover:bg-slate-800 transition">{editingTask ? t('save') : t('add')}</button>
                     </form>
                 </div>
             </div>
