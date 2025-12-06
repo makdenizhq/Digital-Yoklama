@@ -1,18 +1,18 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useAppContext } from '../context/AppContext';
 import WebcamCapture from '../components/WebcamCapture';
 import { verifyFace } from '../services/geminiService';
-import { CheckCircle, XCircle, Loader2, User, ScanFace, QrCode, RefreshCcw, ShieldAlert } from 'lucide-react';
+import { CheckCircle, XCircle, Loader2, User, ScanFace, QrCode, RefreshCcw, ShieldAlert, Maximize2, Minimize2 } from 'lucide-react';
 import { Student } from '../types';
 
 type ScanStep = 'idle' | 'scanning_qr' | 'verifying_face' | 'success' | 'failure';
 
 const Scanner = () => {
-  const { students, markAttendance, t } = useAppContext();
+  const { students, markAttendance, t, navigateTo } = useAppContext();
   const [step, setStep] = useState<ScanStep>('scanning_qr');
   const [identifiedStudent, setIdentifiedStudent] = useState<Student | null>(null);
-  const [feedback, setFeedback] = useState<string>(t('qrScanning'));
+  const [feedback, setFeedback] = useState<string>("Please scan your ID Card's QR CODE");
   const [matchedPhoto, setMatchedPhoto] = useState<string | null>(null);
   
   // Retry Logic
@@ -31,7 +31,7 @@ const Scanner = () => {
         setStep('verifying_face');
         setRetryCount(0); // Reset retries on new QR scan
         
-        setFeedback("QR Detected! " + t('lookAtCamera'));
+        setFeedback("Please stand in front of the camera and look at it");
         
         // Wait 1.5 seconds for user to switch
         setTimeout(() => {
@@ -39,7 +39,7 @@ const Scanner = () => {
         }, 1500);
     } else {
         setFeedback('Unknown QR Code');
-        setTimeout(() => setFeedback(t('qrScanning')), 2000);
+        setTimeout(() => setFeedback("Please scan your ID Card's QR CODE"), 2000);
     }
   };
 
@@ -47,7 +47,7 @@ const Scanner = () => {
     setTriggerCapture(false); // Reset trigger
     if (!identifiedStudent) return;
     
-    setFeedback(t('verifying'));
+    setFeedback(t('verifying') + "...");
     
     try {
         const result = await verifyFace(identifiedStudent.photos, imageSrc);
@@ -87,7 +87,7 @@ const Scanner = () => {
       
       // Allow retry
       setStep('verifying_face');
-      setFeedback(t('lookAtCamera'));
+      setFeedback("Please stand in front of the camera and look at it");
       // Wait 1s then capture
       setTimeout(() => {
           setTriggerCapture(true);
@@ -98,68 +98,79 @@ const Scanner = () => {
       setStep('scanning_qr');
       setIdentifiedStudent(null);
       setMatchedPhoto(null);
-      setFeedback(t('qrScanning'));
+      setFeedback("Please scan your ID Card's QR CODE");
       setTriggerCapture(false);
       setRetryCount(0);
   };
 
   return (
-    <div className="h-[calc(100vh-5rem)] flex flex-col gap-6">
-      {/* Status Card */}
-      <div className={`p-6 rounded-2xl shadow-md transition-all duration-300 flex items-center justify-between
-        ${step === 'success' ? 'bg-green-600 text-white shadow-green-600/20' : 
-          step === 'failure' ? 'bg-red-600 text-white shadow-red-600/20' : 
-          'bg-white border border-slate-100 text-slate-800'}`}>
-          <div>
-            <h2 className="text-2xl font-black uppercase tracking-wide flex items-center gap-3">
-                {step === 'scanning_qr' && <><QrCode /> {t('qrReady')}</>}
-                {step === 'verifying_face' && <><ScanFace className="animate-pulse"/> {t('verifying')}</>}
-                {step === 'success' && t('verified')}
-                {step === 'failure' && t('failed')}
+    <div className="fixed inset-0 z-50 bg-black flex flex-col overflow-hidden">
+      {/* Top Thin Status Bar */}
+      <div className={`h-16 flex items-center justify-between px-6 transition-colors duration-300 border-b border-white/10 relative z-50
+        ${step === 'success' ? 'bg-green-600' : 
+          step === 'failure' ? 'bg-red-600' : 
+          'bg-slate-900'}`}>
+          
+          <div className="flex items-center gap-4 text-white">
+            {step === 'scanning_qr' && <QrCode className="animate-pulse" />}
+            {step === 'verifying_face' && <ScanFace className="animate-pulse" />}
+            {step === 'success' && <CheckCircle />}
+            {step === 'failure' && <XCircle />}
+            
+            <h2 className="text-lg font-bold tracking-wide uppercase">
+                {step === 'scanning_qr' && "Ready to Scan"}
+                {step === 'verifying_face' && "Verifying Identity"}
+                {step === 'success' && "Access Granted"}
+                {step === 'failure' && "Access Denied"}
             </h2>
-            <p className="text-sm font-medium opacity-90 mt-1">{feedback}</p>
           </div>
-          {step === 'verifying_face' && <Loader2 className="animate-spin w-8 h-8" />}
-          {step === 'success' && <CheckCircle size={40} />}
-          {step === 'failure' && <XCircle size={40} />}
+
+          <div className="absolute left-1/2 -translate-x-1/2 bg-black/40 px-6 py-2 rounded-full border border-white/10 backdrop-blur-sm">
+             <p className="text-sm font-medium text-white/90 whitespace-nowrap animate-pulse">
+                {feedback}
+             </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+             <button 
+                onClick={() => navigateTo('dashboard')} 
+                className="text-white/50 hover:text-white text-xs uppercase font-bold border border-white/20 px-3 py-1 rounded transition hover:bg-white/10"
+             >
+                Exit Fullscreen
+             </button>
+          </div>
       </div>
 
-      {/* Main Content Area */}
-      <div className="flex-1 bg-black rounded-3xl overflow-hidden shadow-2xl relative border-4 border-slate-900 flex flex-col">
-          
+      {/* Main Camera Area */}
+      <div className="flex-1 relative bg-black">
           {/* Camera fills available space */}
-          <div className="flex-1 relative group">
-            <WebcamCapture 
-                mode="scanner"
-                onQrDetected={handleQrDetected}
-                onCapture={handleFaceCapture}
-                pauseScan={step !== 'scanning_qr'}
-                triggerCapture={triggerCapture} 
-                className="w-full h-full object-cover"
-                objectDetection={step === 'verifying_face'} 
-            />
+          <WebcamCapture 
+            mode="scanner"
+            onQrDetected={handleQrDetected}
+            onCapture={handleFaceCapture}
+            pauseScan={step !== 'scanning_qr'}
+            triggerCapture={triggerCapture} 
+            className="w-full h-full object-contain"
+            objectDetection={step === 'verifying_face'} 
+          />
             
             {/* Visual Guide Overlay */}
             <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
                 {step === 'scanning_qr' && (
-                    <div className="w-64 h-64 border-4 border-white/30 rounded-3xl relative animate-pulse">
-                        <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-blue-500 -mt-1 -ml-1 rounded-tl-xl"></div>
-                        <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-blue-500 -mt-1 -mr-1 rounded-tr-xl"></div>
-                        <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-blue-500 -mb-1 -ml-1 rounded-bl-xl"></div>
-                        <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-blue-500 -mb-1 -mr-1 rounded-br-xl"></div>
-                        <div className="absolute inset-0 flex items-center justify-center text-white/80 font-bold bg-black/20 backdrop-blur-[2px] rounded-2xl">
-                            {t('scanQr')}
+                    <div className="w-72 h-72 border-2 border-white/40 rounded-3xl relative">
+                        <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-blue-500 -mt-1 -ml-1 rounded-tl-lg"></div>
+                        <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-blue-500 -mt-1 -mr-1 rounded-tr-lg"></div>
+                        <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-blue-500 -mb-1 -ml-1 rounded-bl-lg"></div>
+                        <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-blue-500 -mb-1 -mr-1 rounded-br-lg"></div>
+                        
+                        <div className="absolute -bottom-12 w-full text-center">
+                             <p className="text-white/50 text-xs uppercase tracking-widest font-bold">Align QR Code Here</p>
                         </div>
                     </div>
                 )}
                 
                 {step === 'verifying_face' && (
-                     <div className="w-[30%] h-[50%] border-4 border-green-500/50 rounded-[50%] relative animate-pulse shadow-[0_0_50px_rgba(34,197,94,0.3)]">
-                        <div className="absolute -top-12 w-full text-center">
-                            <span className="bg-black/60 text-white px-4 py-1 rounded-full text-sm font-bold backdrop-blur-md">
-                                {t('lookAtCamera')}
-                            </span>
-                        </div>
+                     <div className="w-[30%] h-[50%] border-4 border-green-500/50 rounded-[50%] relative animate-pulse shadow-[0_0_50px_rgba(34,197,94,0.2)]">
                      </div>
                 )}
             </div>
@@ -203,40 +214,37 @@ const Scanner = () => {
                     </div>
                 </div>
             )}
-            
-            {/* Object Detection Flash/Visuals */}
-            {step === 'verifying_face' && (
-                <div className="absolute top-4 right-4 z-50">
-                     <span className="bg-black/50 text-white text-xs px-2 py-1 rounded border border-white/20 animate-pulse">
-                        AI Object Detection Active
-                     </span>
+      </div>
+
+      {/* Bottom Result Banner - KOMPAKT VERSİYON */}
+{identifiedStudent && step !== 'failure' && (
+    // DEĞİŞİKLİK 1: pt-8 ve pb-8 yerine pt-6 ve pb-4 kullanıldı (Daha az dikey boşluk)
+    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/90 to-transparent pt-6 pb-4 px-6 z-40">
+        <div className="flex items-center gap-4 max-w-4xl mx-auto"> 
+            {step === 'success' && matchedPhoto ? (
+                // DEĞİŞİKLİK 2: w-24 h-24 yerine w-16 h-16 (Resim küçültüldü: 96px -> 64px)
+                <img src={matchedPhoto} className="w-16 h-16 rounded-full border-2 border-green-500 object-cover shadow-lg" />
+            ) : (
+                // DEĞİŞİKLİK 3: İkon kutusu da w-16 h-16 yapıldı
+                <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center border-2 border-white/20 shadow-lg backdrop-blur-md">
+                    <User size={28} className="text-white/50" />
                 </div>
             )}
-          </div>
-
-          {/* Identification Overlay (Bottom Sheet style) */}
-          {identifiedStudent && step !== 'failure' && (
-              <div className="absolute bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md p-6 border-t border-white/20 animate-in slide-in-from-bottom duration-300 z-20">
-                   <div className="flex items-center gap-6 max-w-3xl mx-auto">
-                        {step === 'success' && matchedPhoto ? (
-                            <img src={matchedPhoto} className="w-24 h-24 rounded-full border-4 border-green-500 object-cover shadow-lg" />
-                        ) : (
-                            <div className="w-24 h-24 rounded-full bg-slate-200 flex items-center justify-center border-4 border-white shadow-lg">
-                                <User size={40} className="text-slate-400" />
-                            </div>
-                        )}
-                        <div>
-                            <h1 className="text-4xl font-black text-slate-900 leading-none mb-2">
-                                {identifiedStudent.firstName} {identifiedStudent.lastName}
-                            </h1>
-                            <span className="inline-block px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-lg font-bold">
-                                Class {identifiedStudent.gradeLevel}-{identifiedStudent.section}
-                            </span>
-                        </div>
-                   </div>
-              </div>
-          )}
-      </div>
+            <div className="text-white">
+                {/* DEĞİŞİKLİK 4: Yazı boyutu text-4xl yerine text-2xl yapıldı */}
+                <h1 className="text-2xl font-bold leading-none mb-1">
+                    {identifiedStudent.firstName} {identifiedStudent.lastName}
+                </h1>
+                <div className="flex items-center gap-2 opacity-80">
+                    <span className="px-2 py-0.5 bg-white/20 rounded-full text-xs font-bold border border-white/10">
+                        {identifiedStudent.gradeLevel}-{identifiedStudent.section}
+                    </span>
+                    <span className="font-mono text-xs tracking-widest">{identifiedStudent.id}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+)}
     </div>
   );
 };

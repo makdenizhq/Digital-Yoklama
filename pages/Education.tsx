@@ -1,14 +1,14 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { BookOpen, Award, TrendingUp, ScanLine, BarChart3, Calendar, Search, Plus, Save, X, User, Edit } from 'lucide-react';
+import { BookOpen, Award, TrendingUp, ScanLine, BarChart3, Calendar, Search, Plus, Save, X, User, Edit, Upload, FileText } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
 import WebcamCapture from '../components/WebcamCapture';
 import { Grade } from '../types';
+import ImageUploader from '../components/ImageUploader';
 
 const Education = () => {
   const { t, grades, students, addGrade } = useAppContext();
-  // Changed default tab to 'schedule'
   const [activeTab, setActiveTab] = useState<'overview' | 'individual' | 'schedule' | 'omr'>('schedule');
   
   // Individual Tab State
@@ -19,7 +19,6 @@ const Education = () => {
 
   // Schedule Tab State
   const [scheduleView, setScheduleView] = useState<'week' | 'today' | 'tomorrow'>('week');
-  // State for editing topics
   const [editingTopic, setEditingTopic] = useState<{period: number, day?: string, currentTopic: string} | null>(null);
 
   // OMR Tab State
@@ -27,6 +26,8 @@ const Education = () => {
   const [omrSubject, setOmrSubject] = useState<string>('');
   const [isScanning, setIsScanning] = useState(false);
   const [scanResult, setScanResult] = useState<number | null>(null);
+  const [uploadedPaper, setUploadedPaper] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // --- STATS CALCULATION ---
   const stats = useMemo(() => {
@@ -49,6 +50,24 @@ const Education = () => {
 
       return { classData, schoolAvg };
   }, [grades, students]);
+
+  // --- TOP PERFORMERS (REAL DATA) ---
+  const topPerformers = useMemo(() => {
+      const studentAvgs = students.map(student => {
+          const sGrades = grades.filter(g => g.studentId === student.id);
+          if (sGrades.length === 0) return null;
+          const avg = sGrades.reduce((a, b) => a + b.score, 0) / sGrades.length;
+          return {
+              id: student.id,
+              name: `${student.firstName} ${student.lastName}`,
+              avg: avg,
+              count: sGrades.length
+          };
+      }).filter(Boolean) as {id: string, name: string, avg: number, count: number}[];
+
+      // Sort by average descending
+      return studentAvgs.sort((a, b) => b.avg - a.avg).slice(0, 5);
+  }, [students, grades]);
 
   // --- INDIVIDUAL STATS ---
   const individualData = useMemo(() => {
@@ -94,8 +113,6 @@ const Education = () => {
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
   const periods = [1, 2, 3, 4, 5, 6, 7, 8];
   
-  // Mock Schedule Generator (with simple state for demo topics)
-  // In a real app, this would be fetched from context/db
   const getScheduleForDay = (dayIndex: number) => { 
       if (dayIndex < 1 || dayIndex > 5) return []; 
       const subjects = ['Math', 'Physics', 'History', 'English', 'Biology', 'Chemistry', 'Art', 'PE'];
@@ -104,7 +121,7 @@ const Education = () => {
           period: i+1, 
           subject: sub, 
           teacher: `Teacher ${sub.charAt(0)}`,
-          topic: `Unit ${dayIndex}.${i+1}: Introduction to ${sub}` // Mock topic
+          topic: `Unit ${dayIndex}.${i+1}: Introduction to ${sub}` 
       }));
   };
 
@@ -121,6 +138,8 @@ const Education = () => {
   const handleScanOMR = () => {
       setIsScanning(true);
       setScanResult(null);
+      
+      // Simulate AI Processing delay
       setTimeout(() => {
           const randomScore = Math.floor(Math.random() * 30) + 70; 
           setScanResult(randomScore);
@@ -136,7 +155,19 @@ const Education = () => {
               });
           }
           setIsScanning(false);
+          setUploadedPaper(null);
       }, 3000);
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+              setUploadedPaper(reader.result as string);
+          };
+          reader.readAsDataURL(file);
+      }
   };
 
   return (
@@ -160,7 +191,7 @@ const Education = () => {
             </div>
         </div>
 
-        {/* TAB: SCHEDULE (NOW DEFAULT) */}
+        {/* TAB: SCHEDULE */}
         {activeTab === 'schedule' && (
             <div className="space-y-4 animate-in fade-in">
                 <div className="flex justify-center bg-white p-1 rounded-xl w-fit mx-auto border border-slate-100 shadow-sm">
@@ -194,7 +225,6 @@ const Education = () => {
                             </tbody>
                         </table>
                     ) : (
-                        // Daily View
                         <div className="max-w-3xl mx-auto">
                             {currentSchedule && currentSchedule.length > 0 ? (
                                 <div className="space-y-3">
@@ -272,12 +302,18 @@ const Education = () => {
                     <div className="bg-gradient-to-br from-purple-600 to-indigo-700 p-6 rounded-2xl shadow-lg text-white">
                         <Award size={32} className="mb-2 opacity-80" />
                         <h3 className="text-lg font-bold mb-1">Top Performers</h3>
-                        <p className="text-xs opacity-70 mb-4">Highest GPA this term</p>
-                        <ul className="space-y-2 text-sm">
-                            <li className="flex justify-between border-b border-white/20 pb-1"><span>Alex Testuser</span> <b>98.5</b></li>
-                            <li className="flex justify-between border-b border-white/20 pb-1"><span>Sarah Smith</span> <b>97.2</b></li>
-                            <li className="flex justify-between border-b border-white/20 pb-1"><span>John Doe</span> <b>96.0</b></li>
-                        </ul>
+                        <p className="text-xs opacity-70 mb-4">Highest Average Score</p>
+                        
+                        <div className="space-y-2 text-sm">
+                            {topPerformers.length > 0 ? topPerformers.map((s, i) => (
+                                <div key={s.id} className="flex justify-between border-b border-white/20 pb-1 last:border-0">
+                                    <span className="flex items-center gap-2"><span className="text-xs opacity-60 w-4">{i+1}.</span> {s.name}</span> 
+                                    <b>{s.avg.toFixed(1)}</b>
+                                </div>
+                            )) : (
+                                <p className="text-xs text-white/50 text-center">No grade data available</p>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -401,7 +437,7 @@ const Education = () => {
                         <ScanLine size={48} className={`mb-4 transition-colors ${isScanning ? 'text-purple-500 animate-pulse' : 'text-slate-300'}`}/>
                         <h3 className="text-lg font-bold text-slate-800">Optical Mark Recognition</h3>
                         <p className="text-sm text-slate-500 max-w-xs my-4">
-                            Align the answer sheet within the frame. The system will auto-grade.
+                            Align the answer sheet within the frame or upload an image. The system will auto-grade using AI.
                         </p>
                         
                         {scanResult !== null ? (
@@ -411,26 +447,54 @@ const Education = () => {
                                 <p className="text-[10px] mt-2">Saved to {omrSubject}</p>
                             </div>
                         ) : (
-                            <button 
-                                onClick={handleScanOMR} 
-                                disabled={!omrStudentId || !omrSubject || isScanning}
-                                className={`px-6 py-3 rounded-xl font-bold transition flex items-center gap-2 ${(!omrStudentId || !omrSubject) ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-purple-600 text-white hover:bg-purple-700'}`}
-                            >
-                                {isScanning ? 'Scanning...' : 'Scan Paper'}
-                            </button>
+                            <div className="flex gap-3">
+                                <button 
+                                    onClick={handleScanOMR} 
+                                    disabled={(!omrStudentId || !omrSubject || isScanning) && !uploadedPaper}
+                                    className={`px-6 py-3 rounded-xl font-bold transition flex items-center gap-2 ${(!omrStudentId || !omrSubject) ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-purple-600 text-white hover:bg-purple-700'}`}
+                                >
+                                    {isScanning ? 'Analyzing...' : (uploadedPaper ? 'Analyze Upload' : 'Scan Camera')}
+                                </button>
+                                
+                                <div className="relative">
+                                    <button 
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className="px-4 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold hover:bg-slate-50 transition flex items-center gap-2"
+                                    >
+                                        <Upload size={18}/>
+                                    </button>
+                                    <input 
+                                        type="file" 
+                                        ref={fileInputRef} 
+                                        className="hidden" 
+                                        accept="image/*,application/pdf"
+                                        onChange={handleFileUpload}
+                                    />
+                                </div>
+                            </div>
+                        )}
+                        {uploadedPaper && !isScanning && scanResult === null && (
+                            <p className="text-xs text-green-600 mt-2 font-bold flex items-center gap-1"><FileText size={12}/> File Ready</p>
                         )}
                     </div>
                 </div>
 
-                <div className="bg-black rounded-2xl overflow-hidden shadow-lg aspect-video relative border-4 border-slate-900">
-                    <WebcamCapture onCapture={() => {}} mode="simple" className="w-full h-full object-cover"/>
+                <div className="bg-black rounded-2xl overflow-hidden shadow-lg aspect-[3/4] relative border-4 border-slate-900 mx-auto w-full max-w-sm">
+                    {uploadedPaper ? (
+                        <div className="w-full h-full relative">
+                            <img src={uploadedPaper} className="w-full h-full object-contain bg-slate-900" />
+                            <button onClick={() => setUploadedPaper(null)} className="absolute top-2 right-2 bg-black/60 text-white p-1 rounded-full"><X size={16}/></button>
+                        </div>
+                    ) : (
+                        <WebcamCapture onCapture={() => {}} mode="simple" className="w-full h-full object-cover"/>
+                    )}
+                    
                     <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                        <div className="w-[80%] h-[80%] border-2 border-purple-500/50 rounded-lg flex items-center justify-center">
-                            <div className="w-full h-px bg-red-500/50 absolute top-1/2"></div>
-                            <div className="h-full w-px bg-red-500/50 absolute left-1/2"></div>
+                        <div className="w-[85%] h-[90%] border-2 border-purple-500/50 rounded-lg flex items-center justify-center">
+                            {!uploadedPaper && <div className="w-full h-px bg-red-500/30 absolute top-1/2"></div>}
                         </div>
                         <div className="absolute bottom-4 bg-black/60 text-white px-4 py-1 rounded-full text-xs backdrop-blur-md">
-                            Camera Feed
+                            {uploadedPaper ? 'File Preview' : 'Camera Feed'}
                         </div>
                     </div>
                 </div>

@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { AppProvider, useAppContext } from './context/AppContext';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
@@ -10,12 +10,10 @@ import Students from './pages/Students';
 import Attendance from './pages/Attendance';
 import Education from './pages/Education';
 import CalendarPage from './pages/Calendar'; 
-import Finance from './pages/Finance'; // New
-import { ViewState } from './types';
+import Finance from './pages/Finance'; 
 
 const AppContent = () => {
-  const { currentUser } = useAppContext();
-  const [currentView, setCurrentView] = useState<ViewState>('dashboard');
+  const { currentUser, currentView, navigateTo } = useAppContext();
 
   if (!currentUser) {
     return <Login />;
@@ -28,7 +26,7 @@ const AppContent = () => {
       case 'attendance': return <Attendance />;
       case 'education': return <Education />;
       case 'calendar': return <CalendarPage />;
-      case 'finance': return <Finance />; // New
+      case 'finance': return <Finance />; 
       case 'settings': return <Settings />;
       case 'profile': return <Profile />;
       default: return <Dashboard />;
@@ -36,7 +34,7 @@ const AppContent = () => {
   };
 
   return (
-    <Layout currentView={currentView} onNavigate={setCurrentView}>
+    <Layout currentView={currentView} onNavigate={navigateTo}>
       {renderView()}
     </Layout>
   );

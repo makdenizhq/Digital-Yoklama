@@ -1,8 +1,12 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Student, AttendanceRecord, SchoolSettings, User, AuditLog, UserRole, UserPermission, Grade, Payment, Task, Expense, AppNotification } from '../types';
+import { Student, AttendanceRecord, SchoolSettings, User, AuditLog, UserRole, UserPermission, Grade, Payment, Task, Expense, AppNotification, ViewState } from '../types';
 
 interface AppContextType {
+  // Navigation
+  currentView: ViewState;
+  navigateTo: (view: ViewState) => void;
+
   // Auth & Users
   currentUser: User | null;
   users: User[];
@@ -170,7 +174,16 @@ const DICTIONARY: Record<string, Record<string, string>> = {
     presentToday: "Present Today",
     recentActivity: "Recent Activity",
     totalStudents: "Total Students",
-    noRecords: "No records found"
+    noRecords: "No records found",
+    
+    // Scanner
+    tryAgain: "Try Again",
+    noMatch: "No Match",
+    accessDenied: "ACCESS DENIED",
+    backToScanning: "Back to Scanning",
+    contactAdmin: "Please Contact Administration",
+    verifying: "Verifying",
+    verified: "Verified"
   },
   tr: {
     dashboard: "Panel",
@@ -233,11 +246,24 @@ const DICTIONARY: Record<string, Record<string, string>> = {
     presentToday: "Bugün Gelenler",
     recentActivity: "Son Aktiviteler",
     totalStudents: "Toplam Öğrenci",
-    noRecords: "Kayıt bulunamadı"
+    noRecords: "Kayıt bulunamadı",
+
+    // Scanner
+    tryAgain: "Tekrar Dene",
+    noMatch: "Eşleşme Yok",
+    accessDenied: "ERİŞİM REDDEDİLDİ",
+    backToScanning: "Taramaya Dön",
+    contactAdmin: "Lütfen Yönetimle Görüşün",
+    verifying: "Doğrulanıyor",
+    verified: "Doğrulandı"
   }
 };
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  // --- NAVIGATION STATE ---
+  const [currentView, setCurrentView] = useState<ViewState>('dashboard');
+  const navigateTo = (view: ViewState) => setCurrentView(view);
+
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     const saved = localStorage.getItem('attendai_user');
     return saved ? JSON.parse(saved) : null;
@@ -367,12 +393,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const effPerms = settings.rolePermissions?.[user.role] || DEFAULT_PERMISSIONS['staff'];
         setCurrentUser({ ...user, permissions: user.permissions?.length ? user.permissions : effPerms });
         logAction("LOGIN", `User logged in: ${user.username}`);
+        navigateTo('dashboard'); // Reset to dashboard on login
         return true;
     }
     return false;
   };
 
-  const logout = () => { logAction("LOGOUT", "User logged out"); setCurrentUser(null); };
+  const logout = () => { logAction("LOGOUT", "User logged out"); setCurrentUser(null); navigateTo('dashboard'); };
   const updateUser = (u: User) => { setUsers(prev => prev.map(x => x.id === u.id ? u : x)); if(currentUser?.id === u.id) setCurrentUser(u); logAction("UPDATE_USER", u.username); };
   const addUser = (u: User) => { setUsers(prev => [...prev, {...u, permissions: u.permissions || settings.rolePermissions?.[u.role]}]); logAction("ADD_USER", u.username); };
   const deleteUser = (id: string) => setUsers(prev => prev.map(u => u.id === id ? { ...u, isArchived: true } : u));
@@ -454,6 +481,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   return (
     <AppContext.Provider value={{ 
+      currentView, navigateTo, // Navigation exposed here
       currentUser, users, login, logout, updateUser, addUser, deleteUser, restoreUser, deleteUserPermanently, logs,
       students, attendance, grades, payments, expenses, tasks, settings, notifications,
       addStudent, updateStudent, deleteStudent, restoreStudent, deleteStudentPermanently,
