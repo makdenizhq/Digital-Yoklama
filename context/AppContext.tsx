@@ -85,7 +85,8 @@ const INITIAL_SETTINGS: SchoolSettings = {
       { id: '2', name: 'Books', amount: 250, frequency: 'one_time' },
       { id: '3', name: 'Uniform', amount: 150, frequency: 'one_time' },
       { id: '4', name: 'Activity', amount: 100, frequency: 'monthly' }
-  ]
+  ],
+  verificationThreshold: 'medium'
 };
 
 const DEFAULT_ADMIN: User = {
@@ -155,6 +156,11 @@ const DICTIONARY: Record<string, Record<string, string>> = {
     medium: "Medium",
     normal: "Normal",
     low: "Low",
+
+    // Settings
+    verificationThreshold: "Face Verification Sensitivity",
+    strict: "Strict",
+    lenient: "Lenient",
 
     // Common
     save: "Save",
@@ -227,6 +233,11 @@ const DICTIONARY: Record<string, Record<string, string>> = {
     medium: "Orta",
     normal: "Normal",
     low: "Düşük",
+
+    // Settings
+    verificationThreshold: "Yüz Doğrulama Hassasiyeti",
+    strict: "Katı (Yüksek Güvenlik)",
+    lenient: "Esnek (Hızlı Geçiş)",
 
     // Common
     save: "Kaydet",

@@ -1,5 +1,6 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
-import { VerificationResult } from "../types";
+import { VerificationResult, VerificationThreshold } from "../types";
 
 // Clean base64 string (remove data:image/png;base64, prefix if present)
 const cleanBase64 = (data: string) => {
@@ -24,7 +25,8 @@ const urlToBase64 = async (url: string): Promise<string> => {
 
 export const verifyFace = async (
   referenceImages: string[], // Array of reference images
-  liveCaptureBase64: string
+  liveCaptureBase64: string,
+  threshold: VerificationThreshold = 'medium'
 ): Promise<VerificationResult> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
@@ -50,6 +52,19 @@ export const verifyFace = async (
     inlineData: { mimeType: 'image/jpeg', data: cleanLive }
   });
 
+  // 3. Define Prompt based on Threshold
+  let strictnessInstruction = "";
+  switch(threshold) {
+      case 'strict':
+          strictnessInstruction = "BE EXTREMELY STRICT. The person must match perfectly. Do not tolerate significant differences in facial structure. Reject if the match is ambiguous.";
+          break;
+      case 'lenient':
+          strictnessInstruction = "BE LENIENT. Focus on general bone structure. Ignore differences in glasses, facial hair, makeup, or slight aging. Accept if it's reasonably the same person.";
+          break;
+      default: // medium
+          strictnessInstruction = "Be balanced. Focus on underlying facial bone structure (eyes, nose, jawline). Be lenient with lighting changes but ensure it is the same individual.";
+  }
+
   // Add text prompt
   parts.push({
     text: `You are an automated attendance security officer. 
@@ -58,9 +73,7 @@ export const verifyFace = async (
     Compare the LAST photo (Live Capture) against the group of REFERENCE photos provided before it.
     Determine if the person in the live capture is the same person as in the reference photos.
     
-    The reference photos may show the person at different times.
-    Be lenient with lighting, minor age differences, glasses, or facial hair.
-    Focus on underlying facial bone structure (eyes, nose, jawline).
+    ${strictnessInstruction}
     
     Return a JSON object with:
     - match: boolean (true if same person)

@@ -1,3 +1,4 @@
+
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { Camera, RefreshCw, Loader2, Check, X } from 'lucide-react';
 
@@ -11,6 +12,7 @@ interface WebcamCaptureProps {
   triggerCapture?: boolean; // New prop to trigger capture externally
   className?: string;
   objectDetection?: boolean; // Enable object detection layer
+  onFaceDetected?: (detected: boolean) => void; // Callback for real-time face detection status
 }
 
 declare global {
@@ -31,7 +33,8 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
     pauseScan = false,
     triggerCapture = false,
     className = '',
-    objectDetection = false
+    objectDetection = false,
+    onFaceDetected
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -113,8 +116,8 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
   // Load Models
   useEffect(() => {
     const loadModels = async () => {
-        // Load Face Model for Registration
-        if (mode === 'registration' && !faceModelRef.current && window.blazeface) {
+        // Load Face Model for Registration AND Scanner
+        if ((mode === 'registration' || mode === 'scanner') && !faceModelRef.current && window.blazeface) {
             faceModelRef.current = await window.blazeface.load();
         }
         // Load Object Model for Scanner (if enabled)
@@ -220,8 +223,8 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
             setDetectedObjects([]);
         }
 
-        // 3. REGISTRATION FACE LOGIC
-        if (mode === 'registration' && faceModelRef.current) {
+        // 3. FACE LOGIC (Registration AND Scanner)
+        if ((mode === 'registration' || mode === 'scanner') && faceModelRef.current) {
              let predictions = [];
             try {
                 predictions = await faceModelRef.current.estimateFaces(video, false);
@@ -230,6 +233,9 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
             }
 
             if (predictions.length > 0) {
+                // Notify parent about detection
+                if (onFaceDetected) onFaceDetected(true);
+
                 const start = predictions[0].topLeft;
                 const end = predictions[0].bottomRight;
                 const size = [end[0] - start[0], end[1] - start[1]];
@@ -258,7 +264,7 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
                 
                 setFaceBox({ x: uiX, y: uiY, w: uiW, h: uiH });
 
-                if (ctx) {
+                if (mode === 'registration' && ctx) {
                     const sampleSize = 64;
                     canvas.width = sampleSize;
                     canvas.height = sampleSize;
@@ -299,6 +305,7 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
                     }
                 }
             } else {
+                if (onFaceDetected) onFaceDetected(false);
                 setFaceBox(null);
                 setIsSharp(false);
                 setIsAligned(false);
@@ -314,7 +321,7 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
     return () => {
         if (analysisRef.current) cancelAnimationFrame(analysisRef.current);
     };
-  }, [isVideoReady, mode, capturedImage, pauseScan, captureFrame, onQrDetected, triggerCapture, objectDetection]);
+  }, [isVideoReady, mode, capturedImage, pauseScan, captureFrame, onQrDetected, triggerCapture, objectDetection, onFaceDetected]);
 
 
   const handleVideoPlaying = () => {

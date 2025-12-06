@@ -9,11 +9,12 @@ import { Student } from '../types';
 type ScanStep = 'idle' | 'scanning_qr' | 'verifying_face' | 'success' | 'failure';
 
 const Scanner = () => {
-  const { students, markAttendance, t, navigateTo } = useAppContext();
+  const { students, markAttendance, t, navigateTo, settings } = useAppContext();
   const [step, setStep] = useState<ScanStep>('scanning_qr');
   const [identifiedStudent, setIdentifiedStudent] = useState<Student | null>(null);
   const [feedback, setFeedback] = useState<string>("Please scan your ID Card's QR CODE");
   const [matchedPhoto, setMatchedPhoto] = useState<string | null>(null);
+  const [isFaceDetected, setIsFaceDetected] = useState(false);
   
   // Retry Logic
   const [retryCount, setRetryCount] = useState(0);
@@ -50,7 +51,11 @@ const Scanner = () => {
     setFeedback(t('verifying') + "...");
     
     try {
-        const result = await verifyFace(identifiedStudent.photos, imageSrc);
+        const result = await verifyFace(
+            identifiedStudent.photos, 
+            imageSrc, 
+            settings.verificationThreshold || 'medium'
+        );
         
         if (result.match) {
             setStep('success');
@@ -101,6 +106,7 @@ const Scanner = () => {
       setFeedback("Please scan your ID Card's QR CODE");
       setTriggerCapture(false);
       setRetryCount(0);
+      setIsFaceDetected(false);
   };
 
   return (
@@ -151,7 +157,8 @@ const Scanner = () => {
             pauseScan={step !== 'scanning_qr'}
             triggerCapture={triggerCapture} 
             className="w-full h-full object-contain"
-            objectDetection={step === 'verifying_face'} 
+            objectDetection={step === 'verifying_face'}
+            onFaceDetected={setIsFaceDetected}
           />
             
             {/* Visual Guide Overlay */}
@@ -170,7 +177,14 @@ const Scanner = () => {
                 )}
                 
                 {step === 'verifying_face' && (
-                     <div className="w-[30%] h-[50%] border-4 border-green-500/50 rounded-[50%] relative animate-pulse shadow-[0_0_50px_rgba(34,197,94,0.2)]">
+                     <div className={`w-[30%] h-[50%] border-4 rounded-[50%] relative transition-colors duration-200 shadow-[0_0_50px_rgba(0,0,0,0.5)]
+                        ${isFaceDetected ? 'border-green-500/80 shadow-[0_0_50px_rgba(34,197,94,0.3)]' : 'border-red-500/50 shadow-[0_0_50px_rgba(239,68,68,0.3)]'}
+                     `}>
+                        {!isFaceDetected && (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                                <p className="text-red-500 font-bold bg-black/50 px-2 rounded">NO FACE</p>
+                            </div>
+                        )}
                      </div>
                 )}
             </div>
@@ -218,20 +232,16 @@ const Scanner = () => {
 
       {/* Bottom Result Banner - KOMPAKT VERSİYON */}
 {identifiedStudent && step !== 'failure' && (
-    // DEĞİŞİKLİK 1: pt-8 ve pb-8 yerine pt-6 ve pb-4 kullanıldı (Daha az dikey boşluk)
     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/90 to-transparent pt-6 pb-4 px-6 z-40">
         <div className="flex items-center gap-4 max-w-4xl mx-auto"> 
             {step === 'success' && matchedPhoto ? (
-                // DEĞİŞİKLİK 2: w-24 h-24 yerine w-16 h-16 (Resim küçültüldü: 96px -> 64px)
                 <img src={matchedPhoto} className="w-16 h-16 rounded-full border-2 border-green-500 object-cover shadow-lg" />
             ) : (
-                // DEĞİŞİKLİK 3: İkon kutusu da w-16 h-16 yapıldı
                 <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center border-2 border-white/20 shadow-lg backdrop-blur-md">
                     <User size={28} className="text-white/50" />
                 </div>
             )}
             <div className="text-white">
-                {/* DEĞİŞİKLİK 4: Yazı boyutu text-4xl yerine text-2xl yapıldı */}
                 <h1 className="text-2xl font-bold leading-none mb-1">
                     {identifiedStudent.firstName} {identifiedStudent.lastName}
                 </h1>

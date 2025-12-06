@@ -113,6 +113,7 @@ export interface AppNotification {
 }
 
 export type IdGenerationFormat = 'standard' | 'school_prefix' | 'grade_prefix';
+export type VerificationThreshold = 'strict' | 'medium' | 'lenient';
 
 export interface SchoolSettings {
   schoolName: string;
@@ -127,6 +128,7 @@ export interface SchoolSettings {
   rolePermissions?: Record<string, UserPermission[]>;
   isPaidSchool?: boolean;
   feeStructure: FeeType[]; 
+  verificationThreshold: VerificationThreshold;
 }
 
 export type UserRole = string; 

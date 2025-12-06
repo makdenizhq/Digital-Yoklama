@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { Save, Globe, Building, Phone, Users, FileText, Trash2, Plus, Hash, LogOut, Edit, X, RefreshCcw, Shield, Check, UserPlus, ArrowRight, CreditCard, DollarSign } from 'lucide-react';
+import { Save, Globe, Building, Phone, Users, FileText, Trash2, Plus, Hash, LogOut, Edit, X, RefreshCcw, Shield, Check, UserPlus, ArrowRight, CreditCard, DollarSign, ScanFace } from 'lucide-react';
 import { User, UserRole, UserPermission, FeeType } from '../types';
 import ImageUploader from '../components/ImageUploader';
 
@@ -119,6 +119,21 @@ const Settings = () => {
                     <input name="schoolAddress" value={formData.schoolAddress} onChange={handleChange} className="w-full px-3 py-2 text-sm border rounded-lg" placeholder={t('schoolAddress')}/>
                     <input name="contactPhone" value={formData.contactPhone} onChange={handleChange} className="w-full px-3 py-2 text-sm border rounded-lg" placeholder={t('phone')}/>
                     <ImageUploader label={t('schoolLogo')} image={formData.schoolLogoUrl} onImageChange={(b) => setFormData({...formData, schoolLogoUrl: b})} onRemove={() => setFormData({...formData, schoolLogoUrl: ''})}/>
+                </div>
+            </div>
+
+            {/* Facial Verification Settings */}
+            <div className="space-y-3 pt-2 border-t border-slate-100">
+                <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide flex items-center gap-2"><ScanFace size={16}/> {t('verificationThreshold')}</h3>
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    <select name="verificationThreshold" value={formData.verificationThreshold || 'medium'} onChange={handleChange} className="w-full px-3 py-2 text-sm border rounded-lg">
+                        <option value="strict">{t('strict')}</option>
+                        <option value="medium">{t('medium')}</option>
+                        <option value="lenient">{t('lenient')}</option>
+                    </select>
+                    <p className="text-xs text-slate-500 mt-2">
+                        Adjust how strict the AI checks for a match. 'Strict' requires a high-quality match, 'Lenient' allows for more variation (lighting, glasses, etc.).
+                    </p>
                 </div>
             </div>
 
@@ -283,7 +298,7 @@ const Settings = () => {
                       <div><h3 className="text-xl font-black text-slate-900 capitalize">{selectedRole.replace('_', ' ')} Role</h3><p className="text-slate-500 text-xs mt-1">Manage permissions</p></div>
                       <div className="flex gap-2">
                         {isEditingPermissions ? (
-                            <><button onClick={cancelEditPermissions} className="bg-slate-200 text-slate-700 px-4 py-2 rounded-lg text-xs font-bold">{t('cancel')}</button><button onClick={savePermissions} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2"><Save size={14}/> {t('savePermissions')}</button></>
+                            <><button onClick={cancelEditPermissions} className="bg-slate-200 text-slate-700 px-4 py-2 rounded-lg text-xs font-bold">{t('cancel')}</button><button onClick={savePermissions} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2"><Save size={14}/> {t('save')}</button></>
                         ) : (
                             <button onClick={startEditingPermissions} className="bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-slate-50"><Edit size={14}/> {t('editPermissions')}</button>
                         )}
