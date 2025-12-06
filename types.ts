@@ -37,6 +37,68 @@ export interface VerificationResult {
   reason: string;
 }
 
+// --- ACADEMIC TYPES ---
+export type ExamType = 'written' | 'oral' | 'project' | 'trial_exam';
+
+export interface Grade {
+  id: string;
+  studentId: string;
+  subject: string;
+  score: number;
+  type: ExamType;
+  date: string;
+  term: '1' | '2';
+}
+
+export interface ScheduleItem {
+  day: 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri';
+  period: number; // 1-8
+  subject: string;
+  teacher?: string;
+}
+
+// --- FINANCE TYPES ---
+export interface Payment {
+  id: string;
+  studentId: string;
+  amount: number;
+  date: string;
+  type: string; // Changed to string to support dynamic fee names
+  status: 'paid' | 'pending' | 'overdue';
+  description?: string;
+}
+
+export interface Expense {
+  id: string;
+  title: string;
+  amount: number;
+  date: string;
+  category: 'salary' | 'maintenance' | 'supplies' | 'utilities' | 'other';
+  description?: string;
+}
+
+export type FeeFrequency = 'one_time' | 'monthly' | 'yearly' | 'per_use';
+
+export interface FeeType {
+  id: string;
+  name: string;
+  amount: number;
+  frequency: FeeFrequency;
+}
+
+// --- TASK TYPES ---
+export interface Task {
+  id: string;
+  title: string;
+  type: 'todo' | 'task'; // Todo = Personal, Task = Assigned
+  status: 'pending' | 'completed';
+  dueDate: string; // ISO Date
+  reminder: boolean; // Alarm Toggle
+  reminderDate?: string; // ISO Date Time for specific alarm
+  assignedTo: string[]; // Array of User IDs or Student IDs
+  createdBy: string;
+}
+
 export type IdGenerationFormat = 'standard' | 'school_prefix' | 'grade_prefix';
 
 export interface SchoolSettings {
@@ -45,24 +107,25 @@ export interface SchoolSettings {
   contactPhone: string;
   language: 'en' | 'tr';
   idFormat: IdGenerationFormat;
-  schoolPrefix: string; // e.g. "FTH" for Future Tech High
+  schoolPrefix: string;
   schoolLogoUrl?: string;
-  idSequences?: Record<string, number>; // Key: Grade (e.g. "9"), Value: Next Sequence (e.g. 101)
-  roles: string[]; // List of available roles (Dynamic)
-  rolePermissions?: Record<string, UserPermission[]>; // Custom role configuration
+  idSequences?: Record<string, number>; 
+  roles: string[]; 
+  rolePermissions?: Record<string, UserPermission[]>;
+  isPaidSchool?: boolean;
+  feeStructure: FeeType[]; // Changed from fixed object to array
 }
 
-// UserRole is now string to support dynamic roles, but we maintain strong typing for defaults
 export type UserRole = string; 
-export type UserPermission = 'dashboard' | 'scan' | 'register' | 'students' | 'reports' | 'settings';
+export type UserPermission = 'dashboard' | 'students' | 'attendance' | 'education' | 'calendar' | 'settings' | 'scan' | 'register' | 'reports' | 'finance';
 
 export interface User {
   id: string;
   username: string;
-  password?: string; // In a real app, never store plain text
+  password?: string; 
   fullName: string;
   email?: string;
-  title: string; // e.g. "School Principal", "IT Manager", "Math Teacher", "Nurse"
+  title: string; 
   role: UserRole;
   photoUrl?: string;
   isArchived?: boolean;
@@ -73,9 +136,9 @@ export interface AuditLog {
   id: string;
   userId: string;
   userName: string;
-  action: string; // e.g. "LOGIN", "UPDATE_SETTINGS"
+  action: string; 
   details: string;
   timestamp: number;
 }
 
-export type ViewState = 'dashboard' | 'scan' | 'register' | 'students' | 'reports' | 'settings' | 'profile';
+export type ViewState = 'dashboard' | 'students' | 'attendance' | 'education' | 'calendar' | 'settings' | 'profile' | 'finance';

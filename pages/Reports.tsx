@@ -1,7 +1,8 @@
 
 import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { FileText, Download, X, Calendar, Printer } from 'lucide-react';
+import { FileText, Download, X, Calendar, Printer, FileDown, ChevronDown } from 'lucide-react';
+import { exportToPdf, exportToWord } from '../services/exportService';
 
 const Reports = () => {
   const { students, attendance, t } = useAppContext();
@@ -10,6 +11,7 @@ const Reports = () => {
   const [dateRange, setDateRange] = useState<'today' | 'week' | 'month'>('today');
   const [gradeFilter, setGradeFilter] = useState<string>('all');
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+  const [showDownloadMenu, setShowDownloadMenu] = useState(false);
 
   const filteredData = useMemo(() => {
     let targetDateStart = new Date();
@@ -83,18 +85,48 @@ const Reports = () => {
       setTimeout(() => window.print(), 100);
   };
 
+  const handleDownload = (type: 'pdf' | 'word') => {
+      const fileName = `Attendance_Report_${dateRange}_${new Date().toISOString().split('T')[0]}`;
+      if (type === 'pdf') {
+          exportToPdf('reports-content', fileName);
+      } else {
+          exportToWord('reports-content', fileName);
+      }
+      setShowDownloadMenu(false);
+  };
+
   return (
     <div className="space-y-4">
       <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 sticky top-0 z-10 no-print">
         <div className="flex justify-between items-center mb-3">
             <h2 className="text-lg font-bold text-slate-800">{t('reports')}</h2>
-            <button 
-                type="button" 
-                onClick={handlePrint}
-                className="flex items-center gap-2 bg-blue-50 text-blue-600 px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-100 transition"
-            >
-                <Printer size={16} /> Print Report
-            </button>
+            <div className="flex gap-2">
+                <div className="relative">
+                    <button 
+                        onClick={() => setShowDownloadMenu(!showDownloadMenu)}
+                        className="flex items-center gap-2 bg-slate-100 text-slate-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-slate-200 transition"
+                    >
+                        <Download size={16} /> Download <ChevronDown size={14}/>
+                    </button>
+                    {showDownloadMenu && (
+                        <div className="absolute right-0 top-full mt-2 w-40 bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-50">
+                            <button onClick={() => handleDownload('pdf')} className="w-full text-left px-4 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-2">
+                                <FileText size={16} className="text-red-500"/> PDF
+                            </button>
+                            <button onClick={() => handleDownload('word')} className="w-full text-left px-4 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-2">
+                                <FileDown size={16} className="text-blue-500"/> Word
+                            </button>
+                        </div>
+                    )}
+                </div>
+                <button 
+                    type="button" 
+                    onClick={handlePrint}
+                    className="flex items-center gap-2 bg-blue-50 text-blue-600 px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-100 transition"
+                >
+                    <Printer size={16} /> Print
+                </button>
+            </div>
         </div>
         <div className="flex gap-2 flex-wrap">
             <select value={dateRange} onChange={(e) => setDateRange(e.target.value as any)} className="flex-1 min-w-[100px] px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none cursor-pointer hover:bg-slate-100 transition">
@@ -128,7 +160,7 @@ const Reports = () => {
           <p className="text-xs text-slate-400 mt-1">Generated on {new Date().toLocaleDateString()}</p>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden print:border-none print:shadow-none">
+      <div id="reports-content" className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden print:border-none print:shadow-none">
         <div className="overflow-x-auto">
             <table className="w-full text-left text-xs whitespace-nowrap">
                 <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200">

@@ -3,9 +3,10 @@ import React, { useState, useEffect } from 'react';
 import WebcamCapture from '../components/WebcamCapture';
 import { useAppContext } from '../context/AppContext';
 import { Student } from '../types';
-import { Check, Plus, Printer, User, Book, Phone, Search, Wand2, X, Camera, School, Lock, Unlock, MoveHorizontal, MoveVertical, Settings2, ChevronRight } from 'lucide-react';
+import { Check, Plus, Printer, User, Book, Phone, Search, Wand2, X, Camera, School, Lock, Unlock, MoveHorizontal, MoveVertical, Settings2, ChevronRight, Download, FileText, FileDown, ChevronDown } from 'lucide-react';
 // @ts-ignore
 import QRCode from 'react-qr-code';
+import { exportToPdf, exportToWord } from '../services/exportService';
 
 const Registration = () => {
   const { addStudent, t, settings, generateStudentId } = useAppContext();
@@ -21,6 +22,7 @@ const Registration = () => {
   
   // Sidebar Toggle State
   const [isControlsOpen, setIsControlsOpen] = useState(true);
+  const [showDownloadMenu, setShowDownloadMenu] = useState(false);
 
   const handleWidthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const w = parseInt(e.target.value);
@@ -131,6 +133,17 @@ const Registration = () => {
       setAcademicInfo({ gradeLevel: '', section: '', classTeacher: '' });
       setGuardianInfo({ name: '', relation: '', phone: '', email: '' });
       setCapturedPhotos([]);
+  };
+
+  const handleDownload = (type: 'pdf' | 'word') => {
+      const fileName = `ID_Card_${studentInfo.id}`;
+      // For ID Cards, we export the 'cards-preview' container which holds both
+      if (type === 'pdf') {
+          exportToPdf('cards-preview', fileName);
+      } else {
+          exportToWord('cards-preview', fileName);
+      }
+      setShowDownloadMenu(false);
   };
 
   // --- ID CARD COMPONENT (Rendered for both Screen and Print) ---
@@ -496,7 +509,7 @@ const Registration = () => {
                   <p className="text-slate-500 mb-10">The student has been successfully added to the system.</p>
                   
                   {/* Cards Preview on Screen */}
-                  <div className="flex flex-col lg:flex-row justify-center items-center gap-10 mb-12">
+                  <div id="cards-preview" className="flex flex-col lg:flex-row justify-center items-center gap-10 mb-12">
                      <div className="space-y-3">
                         <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block">Front Side</span>
                         <div className="transform hover:scale-105 transition duration-300">
@@ -512,6 +525,25 @@ const Registration = () => {
                   </div>
 
                   <div className="flex gap-4 justify-center">
+                        <div className="relative">
+                            <button 
+                                type="button"
+                                onClick={() => setShowDownloadMenu(!showDownloadMenu)}
+                                className="px-6 py-3 bg-slate-800 text-white font-bold rounded-xl flex items-center gap-2 hover:bg-slate-900 transition shadow-lg"
+                            >
+                                <Download size={20} /> Download <ChevronDown size={16}/>
+                            </button>
+                            {showDownloadMenu && (
+                                <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-50 text-left">
+                                    <button onClick={() => handleDownload('pdf')} className="w-full text-left px-4 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-2">
+                                        <FileText size={16} className="text-red-500"/> Download PDF
+                                    </button>
+                                    <button onClick={() => handleDownload('word')} className="w-full text-left px-4 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-2">
+                                        <FileDown size={16} className="text-blue-500"/> Download Word
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                       <button type="button" onClick={handlePrint} className="px-6 py-3 bg-blue-600 text-white font-bold rounded-xl flex items-center gap-2 hover:bg-blue-700 transition shadow-lg shadow-blue-600/30">
                           <Printer size={20} /> {t('printId')}
                       </button>

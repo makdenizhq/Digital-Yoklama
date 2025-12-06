@@ -3,13 +3,14 @@ import React, { useState } from 'react';
 import { AppProvider, useAppContext } from './context/AppContext';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
-import Scanner from './pages/Scanner';
-import Registration from './pages/Registration';
-import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 import Login from './pages/Login';
 import Profile from './pages/Profile';
-import Students from './pages/Students'; 
+import Students from './pages/Students';
+import Attendance from './pages/Attendance';
+import Education from './pages/Education';
+import CalendarPage from './pages/Calendar'; 
+import Finance from './pages/Finance'; // New
 import { ViewState } from './types';
 
 const AppContent = () => {
@@ -23,10 +24,11 @@ const AppContent = () => {
   const renderView = () => {
     switch (currentView) {
       case 'dashboard': return <Dashboard />;
-      case 'scan': return <Scanner />;
-      case 'register': return <Registration />;
       case 'students': return <Students />;
-      case 'reports': return <Reports />;
+      case 'attendance': return <Attendance />;
+      case 'education': return <Education />;
+      case 'calendar': return <CalendarPage />;
+      case 'finance': return <Finance />; // New
       case 'settings': return <Settings />;
       case 'profile': return <Profile />;
       default: return <Dashboard />;
