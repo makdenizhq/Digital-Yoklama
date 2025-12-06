@@ -11,9 +11,18 @@ import Attendance from './pages/Attendance';
 import Education from './pages/Education';
 import CalendarPage from './pages/Calendar'; 
 import Finance from './pages/Finance'; 
+import Scanner from './pages/Scanner';
 
 const AppContent = () => {
   const { currentUser, currentView, navigateTo } = useAppContext();
+
+  // Check for Projection Mode (2nd Screen)
+  const urlParams = new URLSearchParams(window.location.search);
+  const isProjection = urlParams.get('mode') === 'projection';
+
+  if (isProjection) {
+      return <Scanner />;
+  }
 
   if (!currentUser) {
     return <Login />;
