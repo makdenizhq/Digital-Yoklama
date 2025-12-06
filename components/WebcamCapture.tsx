@@ -1,4 +1,3 @@
-
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { Camera, RefreshCw, Loader2, Check, X } from 'lucide-react';
 
@@ -9,16 +8,16 @@ interface WebcamCaptureProps {
   autoStart?: boolean;
   mode?: 'simple' | 'registration' | 'scanner';
   pauseScan?: boolean; 
-  triggerCapture?: boolean; // New prop to trigger capture externally
+  triggerCapture?: boolean; // Harici tetikleyici
   className?: string;
-  objectDetection?: boolean; // Enable object detection layer
-  onFaceDetected?: (detected: boolean) => void; // Callback for real-time face detection status
+  objectDetection?: boolean; // Nesne tanıma katmanı
+  onFaceDetected?: (detected: boolean) => void; // Yüz durumu callback'i
 }
 
 declare global {
   interface Window {
     blazeface: any;
-    cocoSsd: any; // Object Detection Model
+    cocoSsd: any; 
     tf: any;
     jsQR: any; 
   }
@@ -42,7 +41,7 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const analysisRef = useRef<number | null>(null);
   
-  // Models
+  // Modeller
   const faceModelRef = useRef<any>(null);
   const objectModelRef = useRef<any>(null);
   
@@ -51,12 +50,12 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
   const [isVideoReady, setIsVideoReady] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   
-  // Registration Mode State
+  // Registration Modu State'leri
   const [faceBox, setFaceBox] = useState<{x: number, y: number, w: number, h: number} | null>(null);
   const [isSharp, setIsSharp] = useState(false);
   const [isAligned, setIsAligned] = useState(false);
 
-  // Object Detection State (Scanner Mode)
+  // Scanner Modu Nesne Algılama State'i
   const [detectedObjects, setDetectedObjects] = useState<Array<{class: string, score: number, bbox: number[]}>>([]);
 
   const cleanup = useCallback(() => {
@@ -113,14 +112,14 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
     }
   }, [stopCamera, mode]);
 
-  // Load Models
+  // Modelleri Yükle
   useEffect(() => {
     const loadModels = async () => {
-        // Load Face Model for Registration AND Scanner
+        // Face Model (Hem Registration hem Scanner için gerekli)
         if ((mode === 'registration' || mode === 'scanner') && !faceModelRef.current && window.blazeface) {
             faceModelRef.current = await window.blazeface.load();
         }
-        // Load Object Model for Scanner (if enabled)
+        // Object Model (Scanner için opsiyonel)
         if (window.cocoSsd && !objectModelRef.current) {
             objectModelRef.current = await window.cocoSsd.load();
         }
@@ -138,7 +137,7 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         
-        // Mirror the capture if in registration OR scanner mode
+        // Registration veya Scanner modunda aynalama
         if (mode === 'registration' || mode === 'scanner') {
             context.translate(canvas.width, 0);
             context.scale(-1, 1);
@@ -151,7 +150,7 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
     return null;
   }, [isVideoReady, mode]);
 
-  // Handle external trigger
+  // Harici tetikleyici (Scanner'dan gelen komut)
   useEffect(() => {
     if (triggerCapture && isVideoReady) {
         const img = captureFrame();
@@ -161,7 +160,7 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
     }
   }, [triggerCapture, isVideoReady, captureFrame, onCapture]);
 
-  // --- MAIN ANALYSIS LOOP ---
+  // --- ANA ANALİZ DÖNGÜSÜ ---
   useEffect(() => {
     if (!isVideoReady || capturedImage) {
         if (analysisRef.current) cancelAnimationFrame(analysisRef.current);
@@ -173,7 +172,7 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
     let lastObjDetectTime = 0;
 
     const analyze = async (time: number) => {
-        // Throttle analysis to ~30 FPS
+        // ~30 FPS sınırı
         if (time - lastTime < 33) { 
             analysisRef.current = requestAnimationFrame(analyze);
             return;
@@ -189,7 +188,7 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
-        // 1. QR SCANNING (Only when not paused)
+        // 1. QR TARAMA
         if (mode === 'scanner' && !pauseScan && window.jsQR && onQrDetected) {
              if (video.videoWidth > 0) {
                  canvas.width = video.videoWidth;
@@ -203,15 +202,13 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
 
                      if (code && code.data) {
                          onQrDetected(code.data); 
-                         // Don't return here, let object detection run if enabled in background or just transition
                      }
                  }
              }
         }
 
-        // 2. OBJECT DETECTION (When paused/verifying in Scanner Mode)
+        // 2. NESNE TANIMA (Opsiyonel)
         if (mode === 'scanner' && objectDetection && objectModelRef.current && (time - lastObjDetectTime > 200)) {
-            // Run object detection ~5 times per second to save performance
             lastObjDetectTime = time;
             try {
                 const predictions = await objectModelRef.current.detect(video);
@@ -223,7 +220,7 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
             setDetectedObjects([]);
         }
 
-        // 3. FACE LOGIC (Registration AND Scanner)
+        // 3. YÜZ ANALİZİ (GÜNCELLENMİŞ KISIM)
         if ((mode === 'registration' || mode === 'scanner') && faceModelRef.current) {
              let predictions = [];
             try {
@@ -233,9 +230,7 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
             }
 
             if (predictions.length > 0) {
-                // Notify parent about detection
-                if (onFaceDetected) onFaceDetected(true);
-
+                // Koordinatları Al
                 const start = predictions[0].topLeft;
                 const end = predictions[0].bottomRight;
                 const size = [end[0] - start[0], end[1] - start[1]];
@@ -248,6 +243,30 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
                 const videoW = video.videoWidth;
                 const videoH = video.videoHeight;
 
+                // --- HİZALAMA MANTIĞI (SCANNER İÇİN KRİTİK) ---
+                
+                // Merkez hesaplama (0-1 arası)
+                const faceCX = (rawX + rawW/2) / videoW;
+                const faceCY = (rawY + rawH/2) / videoH;
+                
+                // Genişlik oranı (Yüz ekranda ne kadar yer kaplıyor?)
+                const widthRatio = rawW / videoW;
+
+                // 1. Merkezde mi? (Yatayda %15, Dikeyde %20 sapma payı)
+                const isCentered = Math.abs(faceCX - 0.5) < 0.15 && Math.abs(faceCY - 0.5) < 0.20;
+
+                // 2. Boyutu uygun mu? (Çok küçük değil, çok büyük değil)
+                // En az %20, en fazla %75 kaplamalı
+                const isSizedCorrectly = widthRatio > 0.20 && widthRatio < 0.75;
+
+                const isGoodMatch = isCentered && isSizedCorrectly;
+
+                // Scanner'a sonucu bildir: Sadece hizalıysa TRUE
+                if (onFaceDetected) {
+                    onFaceDetected(isGoodMatch);
+                }
+
+                // --- GÖRSEL KUTU HESAPLAMALARI (UI İÇİN) ---
                 const scaleW = 0.65; 
                 const scaleH = 1.5;
 
@@ -264,6 +283,7 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
                 
                 setFaceBox({ x: uiX, y: uiY, w: uiW, h: uiH });
 
+                // Sadece Registration modunda netlik kontrolü yapıyoruz
                 if (mode === 'registration' && ctx) {
                     const sampleSize = 64;
                     canvas.width = sampleSize;
@@ -282,18 +302,9 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
                     const score = sumDiff / (sampleSize * sampleSize);
                     const sharp = score > 15; 
                     setIsSharp(sharp);
+                    setIsAligned(isGoodMatch); // Yukarıdaki hesaplanan değeri kullan
 
-                    const ovalCW = 0.5; 
-                    const ovalCH = 0.5; 
-                    const faceCX = (rawX + rawW/2) / videoW;
-                    const faceCY = (rawY + rawH/2) / videoH;
-                    const centered = Math.abs(faceCX - ovalCW) < 0.1 && Math.abs(faceCY - ovalCH) < 0.1;
-                    const sized = (rawW / videoW) > 0.15 && (rawW / videoW) < 0.40;
-
-                    const aligned = centered && sized;
-                    setIsAligned(aligned);
-
-                    if (sharp && aligned) {
+                    if (sharp && isGoodMatch) {
                         consecutiveGoodFrames++;
                     } else {
                         consecutiveGoodFrames = 0;
@@ -305,6 +316,7 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
                     }
                 }
             } else {
+                // Yüz yoksa Scanner'a FALSE bildir
                 if (onFaceDetected) onFaceDetected(false);
                 setFaceBox(null);
                 setIsSharp(false);
@@ -391,7 +403,7 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
         onPlaying={handleVideoPlaying} 
         className={`relative z-10 w-full h-full transition-opacity duration-500 bg-black object-contain ${
             (isActive && isVideoReady && !capturedImage) ? 'opacity-100' : 'opacity-0 invisible'
-        } ${/* Mirror logic for both Registration AND Scanner */ (mode === 'registration' || mode === 'scanner') ? 'transform scale-x-[-1]' : ''}`} 
+        } ${(mode === 'registration' || mode === 'scanner') ? 'transform scale-x-[-1]' : ''}`} 
       />
 
       {/* --- OBJECT DETECTION OVERLAY (SCANNER MODE) --- */}
@@ -401,7 +413,6 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
                 const vid = videoRef.current;
                 if(!vid) return null;
                 
-                // Flip X coordinate if mirroring is enabled
                 let xPercent = (obj.bbox[0] / vid.videoWidth) * 100;
                 if (mode === 'scanner') {
                     xPercent = 100 - xPercent - ((obj.bbox[2] / vid.videoWidth) * 100);
@@ -427,7 +438,7 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
         </div>
       )}
 
-      {/* Rest of the component (Registration Overlay, etc) remains the same */}
+      {/* REGISTRATION OVERLAYS */}
       {capturedImage && mode === 'registration' && (
           <div className="absolute inset-0 z-40 bg-black flex items-center justify-center animate-in fade-in duration-300">
               <img src={capturedImage} alt="Captured" className="absolute inset-0 w-full h-full object-cover" />
@@ -436,7 +447,7 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
                       <div className="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center border border-red-500/50"><X size={24} /></div>
                   </button>
                   <button onClick={handleConfirm} className="flex flex-col items-center gap-2 text-green-400 hover:text-green-300 transition">
-                       <div className="w-14 h-14 rounded-full bg-green-500/20 flex items-center justify-center border-2 border-green-500"><Check size={28} /></div>
+                        <div className="w-14 h-14 rounded-full bg-green-500/20 flex items-center justify-center border-2 border-green-500"><Check size={28} /></div>
                   </button>
               </div>
           </div>
