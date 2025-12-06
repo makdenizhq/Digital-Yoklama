@@ -169,7 +169,37 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const [students, setStudents] = useState<Student[]>(() => {
     const saved = localStorage.getItem('attendai_students');
-    const parsed = saved ? JSON.parse(saved) : [];
+    let parsed = saved ? JSON.parse(saved) : [];
+    
+    // --- TEMP DATA INJECTION ---
+    // Inject the specific test student FTH253983 if not exists
+    const testId = 'FTH253983';
+    if (!parsed.find((s: Student) => s.id === testId)) {
+        const testStudent: Student = {
+            id: testId,
+            firstName: 'Alex',
+            lastName: 'Testuser',
+            gradeLevel: '10',
+            section: 'A',
+            classTeacher: 'Mr. Anderson',
+            guardian: {
+                name: 'Parent Testuser',
+                relation: 'Father',
+                phone: '+1 555 0199',
+                email: 'parent@test.com'
+            },
+            photos: [
+                'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
+                'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80'
+            ],
+            dob: '2008-05-15',
+            address: '123 Test Lane',
+            gender: 'Male'
+        };
+        parsed = [...parsed, testStudent];
+    }
+    // ---------------------------
+
     return parsed.map((s: any) => ({
       ...s,
       firstName: s.firstName || s.name?.split(' ')[0] || '',

@@ -1,4 +1,3 @@
-
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { Camera, RefreshCw, Loader2, Check, X } from 'lucide-react';
 
@@ -11,11 +10,13 @@ interface WebcamCaptureProps {
   pauseScan?: boolean; 
   triggerCapture?: boolean; // New prop to trigger capture externally
   className?: string;
+  objectDetection?: boolean; // Enable object detection layer
 }
 
 declare global {
   interface Window {
     blazeface: any;
+    cocoSsd: any; // Object Detection Model
     tf: any;
     jsQR: any; 
   }
@@ -29,14 +30,18 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
     mode = 'simple',
     pauseScan = false,
     triggerCapture = false,
-    className = ''
+    className = '',
+    objectDetection = false
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const analysisRef = useRef<number | null>(null);
-  const modelRef = useRef<any>(null);
+  
+  // Models
+  const faceModelRef = useRef<any>(null);
+  const objectModelRef = useRef<any>(null);
   
   const [error, setError] = useState<string>('');
   const [isActive, setIsActive] = useState(false);
@@ -47,6 +52,9 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
   const [faceBox, setFaceBox] = useState<{x: number, y: number, w: number, h: number} | null>(null);
   const [isSharp, setIsSharp] = useState(false);
   const [isAligned, setIsAligned] = useState(false);
+
+  // Object Detection State (Scanner Mode)
+  const [detectedObjects, setDetectedObjects] = useState<Array<{class: string, score: number, bbox: number[]}>>([]);
 
   const cleanup = useCallback(() => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -72,6 +80,7 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
       setError('');
       setIsVideoReady(false);
       setCapturedImage(null);
+      setDetectedObjects([]);
       
       let mediaStream;
       try {
@@ -101,12 +110,19 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
     }
   }, [stopCamera, mode]);
 
+  // Load Models
   useEffect(() => {
-    if (mode === 'registration' && !modelRef.current && window.blazeface) {
-        window.blazeface.load().then((model: any) => {
-            modelRef.current = model;
-        });
-    }
+    const loadModels = async () => {
+        // Load Face Model for Registration
+        if (mode === 'registration' && !faceModelRef.current && window.blazeface) {
+            faceModelRef.current = await window.blazeface.load();
+        }
+        // Load Object Model for Scanner (if enabled)
+        if (window.cocoSsd && !objectModelRef.current) {
+            objectModelRef.current = await window.cocoSsd.load();
+        }
+    };
+    loadModels();
   }, [mode]);
 
   const captureFrame = useCallback(() => {
@@ -131,7 +147,7 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
     return null;
   }, [isVideoReady, mode]);
 
-  // Handle external trigger for capture (e.g. from Scanner)
+  // Handle external trigger
   useEffect(() => {
     if (triggerCapture && isVideoReady) {
         const img = captureFrame();
@@ -141,18 +157,20 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
     }
   }, [triggerCapture, isVideoReady, captureFrame, onCapture]);
 
-  // Analysis Loop
+  // --- MAIN ANALYSIS LOOP ---
   useEffect(() => {
-    if (!isVideoReady || capturedImage || pauseScan) {
+    if (!isVideoReady || capturedImage) {
         if (analysisRef.current) cancelAnimationFrame(analysisRef.current);
         return;
     }
 
     let consecutiveGoodFrames = 0;
     let lastTime = 0;
+    let lastObjDetectTime = 0;
 
     const analyze = async (time: number) => {
-        if (time - lastTime < 100) { 
+        // Throttle analysis to ~30 FPS
+        if (time - lastTime < 33) { 
             analysisRef.current = requestAnimationFrame(analyze);
             return;
         }
@@ -167,8 +185,8 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
-        // --- QR SCANNER LOGIC ---
-        if (mode === 'scanner' && window.jsQR && onQrDetected) {
+        // 1. QR SCANNING (Only when not paused)
+        if (mode === 'scanner' && !pauseScan && window.jsQR && onQrDetected) {
              if (video.videoWidth > 0) {
                  canvas.width = video.videoWidth;
                  canvas.height = video.videoHeight;
@@ -181,17 +199,31 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
 
                      if (code && code.data) {
                          onQrDetected(code.data); 
-                         return; 
+                         // Don't return here, let object detection run if enabled in background or just transition
                      }
                  }
              }
         }
 
-        // --- REGISTRATION LOGIC ---
-        if (mode === 'registration' && modelRef.current) {
+        // 2. OBJECT DETECTION (When paused/verifying in Scanner Mode)
+        if (mode === 'scanner' && objectDetection && objectModelRef.current && (time - lastObjDetectTime > 200)) {
+            // Run object detection ~5 times per second to save performance
+            lastObjDetectTime = time;
+            try {
+                const predictions = await objectModelRef.current.detect(video);
+                setDetectedObjects(predictions);
+            } catch (e) {
+                console.warn("Object detection error", e);
+            }
+        } else if (!objectDetection) {
+            setDetectedObjects([]);
+        }
+
+        // 3. REGISTRATION FACE LOGIC
+        if (mode === 'registration' && faceModelRef.current) {
              let predictions = [];
             try {
-                predictions = await modelRef.current.estimateFaces(video, false);
+                predictions = await faceModelRef.current.estimateFaces(video, false);
             } catch (e) {
                 console.warn("Detection error", e);
             }
@@ -209,20 +241,13 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
                 const videoW = video.videoWidth;
                 const videoH = video.videoHeight;
 
-                // --- ADJUST BOX SHAPE HERE ---
-                // We want a vertical rectangle/oval, so we narrow the width and increase height slightly
-                const scaleW = 0.65; // Make it 75% of the original width (narrower)
-                const scaleH = 1.5;  // Make it 110% of the original height (taller)
+                const scaleW = 0.65; 
+                const scaleH = 1.5;
 
                 const adjW = rawW * scaleW;
                 const adjH = rawH * scaleH;
-
-                // Re-center the box since we changed dimensions
                 const adjX = rawX + (rawW - adjW) / 2;
-                
-                // Yüksekliğin %15'i kadar yukarı kaydırma payı (Offset)
                 const shiftUpAmount = adjH * 0.1; 
-                // Mevcut merkezleme işleminden bu payı ÇIKARTIYORUZ (-)
                 const adjY = (rawY + (rawH - adjH) / 2) - shiftUpAmount;
 
                 const uiX = 100 - ((adjX + adjW) / videoW * 100); 
@@ -255,9 +280,7 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
                     const ovalCH = 0.5; 
                     const faceCX = (rawX + rawW/2) / videoW;
                     const faceCY = (rawY + rawH/2) / videoH;
-
                     const centered = Math.abs(faceCX - ovalCW) < 0.1 && Math.abs(faceCY - ovalCH) < 0.1;
-                    // Adjusted logic for narrower oval
                     const sized = (rawW / videoW) > 0.15 && (rawW / videoW) < 0.40;
 
                     const aligned = centered && sized;
@@ -274,7 +297,6 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
                          if (fullImg) setCapturedImage(fullImg);
                     }
                 }
-
             } else {
                 setFaceBox(null);
                 setIsSharp(false);
@@ -291,7 +313,7 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
     return () => {
         if (analysisRef.current) cancelAnimationFrame(analysisRef.current);
     };
-  }, [isVideoReady, mode, capturedImage, pauseScan, captureFrame, onQrDetected, triggerCapture]);
+  }, [isVideoReady, mode, capturedImage, pauseScan, captureFrame, onQrDetected, triggerCapture, objectDetection]);
 
 
   const handleVideoPlaying = () => {
@@ -364,6 +386,39 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
         } ${mode === 'registration' ? 'transform scale-x-[-1]' : ''}`} 
       />
 
+      {/* --- OBJECT DETECTION OVERLAY (SCANNER MODE) --- */}
+      {mode === 'scanner' && objectDetection && isActive && isVideoReady && (
+        <div className="absolute inset-0 z-40 pointer-events-none">
+            {detectedObjects.map((obj, i) => {
+                // Calculate position relative to the video element inside object-contain
+                // Note: Simplified positioning. For perfect object-contain mapping, more complex math is needed.
+                // Assuming video fills container for this demo or close enough.
+                const vid = videoRef.current;
+                if(!vid) return null;
+                
+                // COCO-SSD returns [x, y, width, height]
+                // We need to map this to percentage
+                const x = (obj.bbox[0] / vid.videoWidth) * 100;
+                const y = (obj.bbox[1] / vid.videoHeight) * 100;
+                const w = (obj.bbox[2] / vid.videoWidth) * 100;
+                const h = (obj.bbox[3] / vid.videoHeight) * 100;
+
+                const color = obj.class === 'person' ? 'border-green-400 text-green-400' : 'border-yellow-400 text-yellow-400';
+                const bg = obj.class === 'person' ? 'bg-green-400/20' : 'bg-yellow-400/20';
+
+                return (
+                    <div key={i} className={`absolute border-2 ${color} ${bg}`} style={{
+                        left: `${x}%`, top: `${y}%`, width: `${w}%`, height: `${h}%`
+                    }}>
+                        <span className={`absolute -top-6 left-0 px-2 py-0.5 text-xs font-bold bg-black/70 ${color.split(' ')[1]} rounded`}>
+                            {obj.class} {Math.round(obj.score * 100)}%
+                        </span>
+                    </div>
+                )
+            })}
+        </div>
+      )}
+
       {capturedImage && mode === 'registration' && (
           <div className="absolute inset-0 z-40 bg-black flex items-center justify-center animate-in fade-in duration-300">
               <img src={capturedImage} alt="Captured" className="absolute inset-0 w-full h-full object-cover" />
@@ -380,7 +435,6 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({
 
       {mode === 'registration' && isActive && isVideoReady && !capturedImage && (
         <div className="absolute inset-0 z-30 pointer-events-none overflow-hidden">
-            {/* UPDATED OVAL SHAPE: Vertical Ellipse, smaller width */}
             <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[25%] h-[60%] rounded-[50%] border-[3px] transition-all duration-300 ${isAligned ? 'border-green-400 bg-green-400/10' : 'border-white/30 border-dashed'}`} />
             {faceBox && (
                 <div 

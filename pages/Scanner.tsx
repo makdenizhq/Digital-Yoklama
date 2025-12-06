@@ -108,6 +108,7 @@ const Scanner = () => {
                 pauseScan={step !== 'scanning_qr'}
                 triggerCapture={triggerCapture} 
                 className="w-full h-full object-cover"
+                objectDetection={step === 'verifying_face'} // Enable Object Detection when verifying face
             />
             
             {/* Visual Guide Overlay */}
@@ -134,6 +135,15 @@ const Scanner = () => {
                      </div>
                 )}
             </div>
+            
+            {/* Object Detection Flash/Visuals */}
+            {step === 'verifying_face' && (
+                <div className="absolute top-4 right-4 z-50">
+                     <span className="bg-black/50 text-white text-xs px-2 py-1 rounded border border-white/20 animate-pulse">
+                        AI Object Detection Active
+                     </span>
+                </div>
+            )}
           </div>
 
           {/* Identification Overlay (Bottom Sheet style) */}
