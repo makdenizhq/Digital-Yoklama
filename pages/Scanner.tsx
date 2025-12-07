@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useAppContext } from '../context/AppContext';
 import WebcamCapture from '../components/WebcamCapture';
@@ -191,35 +190,36 @@ const Scanner: React.FC<ScannerProps> = ({ onExit }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-[100] bg-slate-950 flex flex-col overflow-hidden font-sans">
       {/* HEADER */}
-      <div className={`h-16 flex items-center justify-between px-6 transition-colors duration-500 border-b border-white/10 relative z-50
-        ${step === 'success' ? 'bg-green-600' : 
-          step === 'failure' ? 'bg-red-600' : 
-          'bg-slate-900'}`}>
+      <div className={`h-16 flex items-center justify-between px-6 transition-colors duration-500 border-b border-white/10 relative z-50 backdrop-blur-md
+        ${step === 'success' ? 'bg-emerald-600/90 border-emerald-500' : 
+          step === 'failure' ? 'bg-rose-600/90 border-rose-500' : 
+          'bg-slate-900/80 border-slate-800'}`}>
           
           <div className="flex items-center gap-4 text-white">
-            {step === 'scanning_qr' && <QrCode className="animate-pulse" />}
-            {step === 'verifying_face' && <ScanFace className="animate-pulse text-yellow-400" />}
-            {step === 'success' && <CheckCircle className="text-white" />}
-            {step === 'failure' && <XCircle className="text-white" />}
+            {step === 'scanning_qr' && <QrCode className="animate-pulse text-blue-400 drop-shadow-[0_0_10px_rgba(96,165,250,0.8)]" />}
+            {step === 'verifying_face' && <ScanFace className="animate-pulse text-amber-400 drop-shadow-[0_0_10px_rgba(251,191,36,0.8)]" />}
+            {step === 'success' && <CheckCircle className="text-white drop-shadow-md" />}
+            {step === 'failure' && <XCircle className="text-white drop-shadow-md" />}
             
-            <h2 className="text-lg font-bold tracking-wide uppercase hidden sm:block">
-                {step === 'scanning_qr' && "Ready to Scan"}
-                {step === 'verifying_face' && "Verifying..."}
+            <h2 className="text-lg font-black tracking-widest uppercase hidden sm:block font-mono text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-400">
+                {step === 'scanning_qr' && "System Ready"}
+                {step === 'verifying_face' && "Processing..."}
                 {step === 'success' && "Access Granted"}
                 {step === 'failure' && "Access Denied"}
             </h2>
           </div>
 
-          {/* Centered Feedback Bubble */}
-          <div className="absolute left-1/2 -translate-x-1/2 bg-black/40 px-6 py-2 rounded-full border border-white/10 backdrop-blur-md shadow-xl">
-             <p className="text-sm font-medium text-white/90 whitespace-nowrap">
+          {/* Centered Feedback Bubble - Tech Style */}
+          <div className="absolute left-1/2 -translate-x-1/2 bg-black/60 px-8 py-2 rounded-full border border-white/10 backdrop-blur-xl shadow-2xl">
+             <p className="text-sm font-bold text-white tracking-wide whitespace-nowrap flex items-center gap-2">
+                <span className={`w-2 h-2 rounded-full ${step === 'idle' || step === 'scanning_qr' ? 'bg-blue-500 animate-pulse' : 'bg-emerald-500'}`}></span>
                 {feedback}
              </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
              {isProjection && (
                  <button 
                     onClick={toggleFullscreen} 
@@ -231,9 +231,9 @@ const Scanner: React.FC<ScannerProps> = ({ onExit }) => {
              )}
              <button 
                 onClick={handleExit} 
-                className="text-white/70 hover:text-white text-xs uppercase font-bold border border-white/20 px-4 py-2 rounded-lg transition hover:bg-white/10"
+                className="text-slate-300 hover:text-white text-xs uppercase font-bold border border-white/10 px-4 py-2 rounded-lg transition hover:bg-white/5 hover:border-white/30 tracking-wider"
              >
-                {isProjection ? 'Close' : 'Exit'}
+                {isProjection ? 'Close System' : 'Exit'}
              </button>
           </div>
       </div>
@@ -258,30 +258,41 @@ const Scanner: React.FC<ScannerProps> = ({ onExit }) => {
             {/* OVERLAYS */}
             <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
                 
-                {/* QR Guide */}
+                {/* QR Guide - Cyberpunk Style */}
                 {step === 'scanning_qr' && (
-                    <div className="w-64 h-64 sm:w-80 sm:h-80 border-2 border-white/30 rounded-3xl relative animate-in fade-in duration-500">
-                        <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-blue-500 -mt-1 -ml-1 rounded-tl-xl"></div>
-                        <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-blue-500 -mt-1 -mr-1 rounded-tr-xl"></div>
-                        <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-blue-500 -mb-1 -ml-1 rounded-bl-xl"></div>
-                        <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-blue-500 -mb-1 -mr-1 rounded-br-xl"></div>
-                        <div className="absolute w-[90%] h-1 bg-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,1)] left-[5%] top-0 animate-[scan_2s_ease-in-out_infinite]"></div>
+                    <div className="w-64 h-64 sm:w-80 sm:h-80 relative animate-in fade-in duration-500">
+                        {/* Glowing corners */}
+                        <div className="absolute top-0 left-0 w-12 h-12 border-t-4 border-l-4 border-blue-500 rounded-tl-2xl shadow-[0_0_20px_rgba(59,130,246,0.6)]"></div>
+                        <div className="absolute top-0 right-0 w-12 h-12 border-t-4 border-r-4 border-blue-500 rounded-tr-2xl shadow-[0_0_20px_rgba(59,130,246,0.6)]"></div>
+                        <div className="absolute bottom-0 left-0 w-12 h-12 border-b-4 border-l-4 border-blue-500 rounded-bl-2xl shadow-[0_0_20px_rgba(59,130,246,0.6)]"></div>
+                        <div className="absolute bottom-0 right-0 w-12 h-12 border-b-4 border-r-4 border-blue-500 rounded-br-2xl shadow-[0_0_20px_rgba(59,130,246,0.6)]"></div>
+                        
+                        {/* Scanning Line Animation */}
+                        <div className="absolute w-[90%] h-0.5 bg-blue-400 shadow-[0_0_25px_rgba(96,165,250,1)] left-[5%] top-0 animate-[scan_2s_ease-in-out_infinite]"></div>
+                        
+                        {/* Grid Effect */}
+                        <div className="absolute inset-4 border border-blue-500/10 grid grid-cols-3 grid-rows-3 rounded-lg"></div>
                     </div>
                 )}
                 
                 {/* Face Guide */}
                 {step === 'verifying_face' && (
-                     <div className={`w-64 h-80 sm:w-80 sm:h-96 border-4 rounded-[40%] relative transition-all duration-300
+                     <div className={`w-64 h-80 sm:w-80 sm:h-96 border-4 rounded-[45%] relative transition-all duration-300
                         ${isFaceDetected 
-                            ? 'border-green-500/60 shadow-[0_0_60px_rgba(34,197,94,0.4)] scale-105' 
-                            : 'border-white/30 shadow-none scale-100'}
+                            ? 'border-emerald-500/80 shadow-[0_0_50px_rgba(16,185,129,0.5)] scale-105' 
+                            : 'border-white/20 shadow-none scale-100'}
                       `}>
                         {!isFaceDetected && (
                             <div className="absolute inset-0 flex items-center justify-center">
-                                <p className="text-white/80 font-bold bg-black/40 px-3 py-1 rounded backdrop-blur-sm animate-pulse">
-                                    NO FACE DETECTED
+                                <p className="text-white font-bold bg-black/60 px-4 py-2 rounded-lg backdrop-blur-md animate-pulse border border-white/10 text-xs tracking-widest uppercase">
+                                    Align Face
                                 </p>
                             </div>
+                        )}
+                        {isFaceDetected && (
+                             <div className="absolute -bottom-12 left-1/2 -translate-x-1/2 bg-emerald-900/80 text-emerald-100 px-4 py-1 rounded-full text-xs font-bold uppercase tracking-widest border border-emerald-500/30">
+                                 Target Locked
+                             </div>
                         )}
                      </div>
                 )}
@@ -289,25 +300,26 @@ const Scanner: React.FC<ScannerProps> = ({ onExit }) => {
 
             {/* ERROR / FAILURE MODAL */}
             {step === 'failure' && (
-                <div className="absolute inset-0 z-40 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-                    <div className="bg-slate-900 border border-white/10 p-8 rounded-3xl max-w-sm w-full text-center shadow-2xl">
+                <div className="absolute inset-0 z-40 bg-black/80 backdrop-blur-lg flex items-center justify-center p-4 animate-in fade-in zoom-in duration-200">
+                    <div className="bg-slate-900/90 border border-white/10 p-10 rounded-3xl max-w-sm w-full text-center shadow-2xl relative overflow-hidden">
+                        <div className="absolute inset-0 bg-red-600/5 animate-pulse pointer-events-none"></div>
                         
                         {retryCount >= MAX_RETRIES ? (
                             <>
-                                <ShieldAlert size={64} className="text-red-500 mx-auto mb-4" />
-                                <h3 className="text-2xl font-bold text-white mb-2">{t('accessDenied')}</h3>
-                                <p className="text-slate-400 mb-6">Verification failed limit reached.</p>
-                                <button onClick={resetScanner} className="w-full bg-white text-slate-900 py-3 rounded-xl font-bold hover:bg-slate-200 pointer-events-auto transition">
+                                <ShieldAlert size={80} className="text-red-500 mx-auto mb-6 drop-shadow-[0_0_15px_rgba(239,68,68,0.6)]" />
+                                <h3 className="text-3xl font-black text-white mb-2 tracking-tighter">{t('accessDenied')}</h3>
+                                <p className="text-slate-400 mb-8 font-medium">Security Limit Reached</p>
+                                <button onClick={resetScanner} className="w-full bg-white text-slate-900 py-3.5 rounded-xl font-bold hover:bg-slate-200 pointer-events-auto transition uppercase tracking-widest text-sm shadow-lg">
                                     {t('backToScanning')}
                                 </button>
                             </>
                         ) : (
                             <>
-                                <XCircle size={64} className="text-red-500 mx-auto mb-4" />
-                                <h3 className="text-xl font-bold text-white mb-2">{t('noMatch')}</h3>
-                                <p className="text-slate-400 mb-6">Face verification failed.</p>
-                                <button onClick={handleRetry} className="w-full bg-red-600 text-white py-3 rounded-xl font-bold hover:bg-red-700 pointer-events-auto transition flex items-center justify-center gap-2">
-                                    <RefreshCcw size={18}/> {t('tryAgain')} ({retryCount}/{MAX_RETRIES})
+                                <XCircle size={80} className="text-rose-500 mx-auto mb-6 drop-shadow-[0_0_15px_rgba(244,63,94,0.6)]" />
+                                <h3 className="text-2xl font-black text-white mb-2 tracking-tight">{t('noMatch')}</h3>
+                                <p className="text-slate-400 mb-8">Biometric Mismatch Detected</p>
+                                <button onClick={handleRetry} className="w-full bg-rose-600 text-white py-3.5 rounded-xl font-bold hover:bg-rose-700 pointer-events-auto transition flex items-center justify-center gap-2 uppercase tracking-wide text-sm shadow-lg shadow-rose-900/50">
+                                    <RefreshCcw size={18}/> {t('tryAgain')} <span className="opacity-50">({retryCount}/{MAX_RETRIES})</span>
                                 </button>
                             </>
                         )}
@@ -316,27 +328,30 @@ const Scanner: React.FC<ScannerProps> = ({ onExit }) => {
             )}
       </div>
 
-      {/* STUDENT INFO BANNER */}
+      {/* STUDENT INFO BANNER (Success/Verification) - Modernized */}
       {identifiedStudent && step !== 'failure' && (
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/95 to-transparent pt-12 pb-8 px-6 z-40">
-            <div className="flex items-center gap-6 max-w-4xl mx-auto animate-in slide-in-from-bottom-10 duration-500"> 
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-slate-950/95 to-transparent pt-24 pb-12 px-6 z-40">
+            <div className="flex items-center gap-8 max-w-4xl mx-auto animate-in slide-in-from-bottom-10 duration-500"> 
                 {matchedPhoto ? (
-                    <img src={matchedPhoto} alt="Student" className="w-20 h-20 rounded-full border-4 border-green-500 object-cover shadow-green-900/50 shadow-lg" />
+                    <div className="relative">
+                        <div className="absolute -inset-1 bg-gradient-to-r from-emerald-400 to-teal-500 rounded-full blur opacity-75"></div>
+                        <img src={matchedPhoto} alt="Student" className="relative w-24 h-24 rounded-full border-4 border-slate-900 object-cover shadow-2xl" />
+                    </div>
                 ) : (
-                    <div className="w-20 h-20 rounded-full bg-slate-800 flex items-center justify-center border-2 border-white/10">
-                        <User size={32} className="text-white/30" />
+                    <div className="w-24 h-24 rounded-full bg-slate-800 flex items-center justify-center border-2 border-white/10 shadow-xl">
+                        <User size={40} className="text-white/30" />
                     </div>
                 )}
                 <div className="text-white">
-                    <h1 className="text-3xl font-bold leading-none mb-2 tracking-tight">
+                    <h1 className="text-4xl font-black leading-none mb-2 tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-400">
                         {identifiedStudent.firstName} {identifiedStudent.lastName}
                     </h1>
-                    <div className="flex items-center gap-3 text-slate-400">
-                        <span className="px-3 py-1 bg-white/10 rounded-md text-sm font-bold text-white border border-white/10">
+                    <div className="flex items-center gap-3 text-slate-300">
+                        <span className="px-3 py-1 bg-white/10 backdrop-blur-md rounded-md text-sm font-bold border border-white/10">
                             {identifiedStudent.gradeLevel} - {identifiedStudent.section}
                         </span>
                         <span className="font-mono text-sm tracking-widest opacity-60">
-                            ID: {identifiedStudent.id}
+                            ID: <span className="text-white font-bold">{identifiedStudent.id}</span>
                         </span>
                     </div>
                 </div>

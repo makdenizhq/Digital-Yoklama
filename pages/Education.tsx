@@ -1,21 +1,25 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { BookOpen, Award, TrendingUp, ScanLine, BarChart3, Calendar, Search, Plus, Save, X, User, Edit, Upload, FileText } from 'lucide-react';
+import { BookOpen, Award, TrendingUp, ScanLine, BarChart3, Calendar, Search, Plus, Save, X, User, Edit, Upload, FileText, Filter } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
 import WebcamCapture from '../components/WebcamCapture';
 import { Grade } from '../types';
 import ImageUploader from '../components/ImageUploader';
 
 const Education = () => {
-  const { t, grades, students, addGrade } = useAppContext();
+  const { t, grades, students, addGrade, settings } = useAppContext();
   const [activeTab, setActiveTab] = useState<'overview' | 'individual' | 'schedule' | 'omr'>('schedule');
   
+  // Class Filter
+  const [selectedGrade, setSelectedGrade] = useState<string>('all');
+  const [selectedSection, setSelectedSection] = useState<string>('all');
+
   // Individual Tab State
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
   const [selectedSubject, setSelectedSubject] = useState<string>('All');
   const [showAddGrade, setShowAddGrade] = useState(false);
-  const [newGrade, setNewGrade] = useState<Partial<Grade>>({ subject: 'Math', type: 'written', term: '1' });
+  const [newGrade, setNewGrade] = useState<Partial<Grade>>({ subject: '', type: 'written', term: '1' });
 
   // Schedule Tab State
   const [scheduleView, setScheduleView] = useState<'week' | 'today' | 'tomorrow'>('week');
@@ -29,12 +33,40 @@ const Education = () => {
   const [uploadedPaper, setUploadedPaper] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Filter students based on selection
+  const filteredStudents = useMemo(() => {
+      return students.filter(s => {
+          if (selectedGrade !== 'all' && s.gradeLevel !== selectedGrade) return false;
+          if (selectedSection !== 'all' && s.section !== selectedSection) return false;
+          return true;
+      });
+  }, [students, selectedGrade, selectedSection]);
+
+  // Get available subjects for the selected student/grade
+  const availableSubjects = useMemo(() => {
+      if (selectedStudentId) {
+          const student = students.find(s => s.id === selectedStudentId);
+          if (student && settings.lessons?.[student.gradeLevel]) {
+              return settings.lessons[student.gradeLevel];
+          }
+      }
+      // Fallback or generic list if no specific student is selected (e.g. for OMR filter)
+      if (selectedGrade !== 'all' && settings.lessons?.[selectedGrade]) {
+          return settings.lessons[selectedGrade];
+      }
+      return ['Math', 'Physics', 'History', 'English', 'Biology', 'Chemistry'];
+  }, [selectedStudentId, selectedGrade, students, settings.lessons]);
+
   // --- STATS CALCULATION ---
   const stats = useMemo(() => {
       const classGroups: Record<string, number[]> = {};
       grades.forEach(g => {
           const s = students.find(stu => stu.id === g.studentId);
           if (s) {
+              // Apply filters
+              if (selectedGrade !== 'all' && s.gradeLevel !== selectedGrade) return;
+              if (selectedSection !== 'all' && s.section !== selectedSection) return;
+
               const key = `${s.gradeLevel}-${s.section}`;
               if (!classGroups[key]) classGroups[key] = [];
               classGroups[key].push(g.score);
@@ -49,11 +81,11 @@ const Education = () => {
       const schoolAvg = classData.length ? Math.round(classData.reduce((a,b) => a + b.average, 0) / classData.length) : 0;
 
       return { classData, schoolAvg };
-  }, [grades, students]);
+  }, [grades, students, selectedGrade, selectedSection]);
 
-  // --- TOP PERFORMERS (REAL DATA) ---
+  // --- TOP PERFORMERS ---
   const topPerformers = useMemo(() => {
-      const studentAvgs = students.map(student => {
+      const studentAvgs = filteredStudents.map(student => {
           const sGrades = grades.filter(g => g.studentId === student.id);
           if (sGrades.length === 0) return null;
           const avg = sGrades.reduce((a, b) => a + b.score, 0) / sGrades.length;
@@ -65,9 +97,8 @@ const Education = () => {
           };
       }).filter(Boolean) as {id: string, name: string, avg: number, count: number}[];
 
-      // Sort by average descending
       return studentAvgs.sort((a, b) => b.avg - a.avg).slice(0, 5);
-  }, [students, grades]);
+  }, [filteredStudents, grades]);
 
   // --- INDIVIDUAL STATS ---
   const individualData = useMemo(() => {
@@ -89,17 +120,18 @@ const Education = () => {
   }, [selectedStudentId, grades, selectedSubject, t]);
 
   const uniqueSubjects = useMemo(() => {
-      const subjs = new Set(grades.map(g => g.subject));
+      // Subjects the student has taken exams in
+      const subjs = new Set(grades.filter(g => g.studentId === selectedStudentId).map(g => g.subject));
       return ['All', ...Array.from(subjs)];
-  }, [grades]);
+  }, [grades, selectedStudentId]);
 
   const handleAddGrade = (e: React.FormEvent) => {
       e.preventDefault();
-      if (selectedStudentId && newGrade.score) {
+      if (selectedStudentId && newGrade.score && newGrade.subject) {
           addGrade({
               id: Date.now().toString(),
               studentId: selectedStudentId,
-              subject: newGrade.subject!,
+              subject: newGrade.subject,
               score: Number(newGrade.score),
               type: newGrade.type as any,
               date: new Date().toISOString(),
@@ -115,9 +147,16 @@ const Education = () => {
   
   const getScheduleForDay = (dayIndex: number) => { 
       if (dayIndex < 1 || dayIndex > 5) return []; 
-      const subjects = ['Math', 'Physics', 'History', 'English', 'Biology', 'Chemistry', 'Art', 'PE'];
-      const rotated = [...subjects.slice(dayIndex), ...subjects.slice(0, dayIndex)];
-      return rotated.map((sub, i) => ({ 
+      
+      // Use subjects defined in settings for the selected grade, or fallbacks
+      const subjects = selectedGrade !== 'all' && settings.lessons?.[selectedGrade] 
+          ? settings.lessons[selectedGrade] 
+          : ['Math', 'Physics', 'History', 'English', 'Biology', 'Chemistry'];
+          
+      // Simple rotation logic for demo purposes
+      const rotated = [...subjects.slice(dayIndex % subjects.length), ...subjects.slice(0, dayIndex % subjects.length)];
+      
+      return rotated.slice(0, 8).map((sub, i) => ({ 
           period: i+1, 
           subject: sub, 
           teacher: `Teacher ${sub.charAt(0)}`,
@@ -132,14 +171,13 @@ const Education = () => {
       if (scheduleView === 'week') return null; 
       
       return getScheduleForDay(targetDay);
-  }, [scheduleView]);
+  }, [scheduleView, selectedGrade, settings.lessons]);
 
   // --- OMR LOGIC ---
   const handleScanOMR = () => {
       setIsScanning(true);
       setScanResult(null);
       
-      // Simulate AI Processing delay
       setTimeout(() => {
           const randomScore = Math.floor(Math.random() * 30) + 70; 
           setScanResult(randomScore);
@@ -173,7 +211,7 @@ const Education = () => {
   return (
     <div className="space-y-6">
         {/* HEADER */}
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col sm:flex-row gap-4 justify-between items-center no-print">
+        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col md:flex-row gap-4 justify-between items-center no-print">
             <div className="flex items-center gap-3">
                 <div className="p-2 bg-purple-100 text-purple-600 rounded-lg">
                     <BookOpen size={24} />
@@ -183,11 +221,36 @@ const Education = () => {
                     <p className="text-xs text-slate-500">Academic performance & tools.</p>
                 </div>
             </div>
-            <div className="flex bg-slate-100 p-1 rounded-xl">
-                <button onClick={() => setActiveTab('schedule')} className={`px-4 py-2 rounded-lg text-xs font-bold transition ${activeTab === 'schedule' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500'}`}>{t('schedule')}</button>
-                <button onClick={() => setActiveTab('overview')} className={`px-4 py-2 rounded-lg text-xs font-bold transition ${activeTab === 'overview' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500'}`}>{t('overview')}</button>
-                <button onClick={() => setActiveTab('individual')} className={`px-4 py-2 rounded-lg text-xs font-bold transition ${activeTab === 'individual' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500'}`}>{t('individual')}</button>
-                <button onClick={() => setActiveTab('omr')} className={`px-4 py-2 rounded-lg text-xs font-bold transition ${activeTab === 'omr' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500'}`}>{t('omr')}</button>
+            
+            {/* Global Class Filter */}
+            <div className="flex gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200">
+                <div className="flex items-center gap-2 px-2 text-slate-400">
+                    <Filter size={14}/>
+                    <span className="text-xs font-bold uppercase">Class:</span>
+                </div>
+                <select 
+                    value={selectedGrade} 
+                    onChange={e => { setSelectedGrade(e.target.value); setSelectedStudentId(''); }}
+                    className="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-bold outline-none"
+                >
+                    <option value="all">All Grades</option>
+                    {['9', '10', '11', '12'].map(g => <option key={g} value={g}>Grade {g}</option>)}
+                </select>
+                <select 
+                    value={selectedSection} 
+                    onChange={e => { setSelectedSection(e.target.value); setSelectedStudentId(''); }}
+                    className="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-bold outline-none"
+                >
+                    <option value="all">All Sections</option>
+                    {['A', 'B', 'C', 'D', 'E'].map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+            </div>
+
+            <div className="flex bg-slate-100 p-1 rounded-xl overflow-x-auto max-w-full">
+                <button onClick={() => setActiveTab('schedule')} className={`px-4 py-2 rounded-lg text-xs font-bold transition whitespace-nowrap ${activeTab === 'schedule' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500'}`}>{t('schedule')}</button>
+                <button onClick={() => setActiveTab('overview')} className={`px-4 py-2 rounded-lg text-xs font-bold transition whitespace-nowrap ${activeTab === 'overview' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500'}`}>{t('overview')}</button>
+                <button onClick={() => setActiveTab('individual')} className={`px-4 py-2 rounded-lg text-xs font-bold transition whitespace-nowrap ${activeTab === 'individual' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500'}`}>{t('individual')}</button>
+                <button onClick={() => setActiveTab('omr')} className={`px-4 py-2 rounded-lg text-xs font-bold transition whitespace-nowrap ${activeTab === 'omr' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500'}`}>{t('omr')}</button>
             </div>
         </div>
 
@@ -210,16 +273,21 @@ const Education = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {periods.map(period => (
+                                {[1, 2, 3, 4, 5, 6, 7, 8].map(period => (
                                     <tr key={period}>
                                         <td className="p-3 border border-slate-100 font-mono text-xs text-slate-400">Period {period}</td>
-                                        {['Math', 'Physics', 'History', 'English', 'Biology'].map((subj, i) => (
-                                            <td key={i} onClick={() => setEditingTopic({period, currentTopic: "Sample Topic"})} className="p-3 border border-slate-100 hover:bg-purple-50 transition cursor-pointer group relative">
-                                                <div className="font-bold text-slate-700">{subj}</div>
-                                                <div className="text-[10px] text-slate-400">Rm 10{i}</div>
-                                                <div className="hidden group-hover:block absolute top-1 right-1"><Edit size={10} className="text-purple-400"/></div>
-                                            </td>
-                                        ))}
+                                        {[1, 2, 3, 4, 5].map((dayIdx) => {
+                                            const subjs = availableSubjects;
+                                            // Simple pseudo-random subject assignment for visualization
+                                            const subj = subjs.length > 0 ? subjs[(period + dayIdx) % subjs.length] : 'N/A';
+                                            return (
+                                                <td key={dayIdx} onClick={() => setEditingTopic({period, currentTopic: "Sample Topic"})} className="p-3 border border-slate-100 hover:bg-purple-50 transition cursor-pointer group relative">
+                                                    <div className="font-bold text-slate-700">{subj}</div>
+                                                    <div className="text-[10px] text-slate-400">Rm 10{dayIdx}</div>
+                                                    <div className="hidden group-hover:block absolute top-1 right-1"><Edit size={10} className="text-purple-400"/></div>
+                                                </td>
+                                            );
+                                        })}
                                     </tr>
                                 ))}
                             </tbody>
@@ -324,8 +392,8 @@ const Education = () => {
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 animate-in fade-in">
                 <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm h-fit">
                     <h4 className="text-xs font-bold text-slate-400 uppercase mb-3">Select Student</h4>
-                    <div className="space-y-1 max-h-[400px] overflow-y-auto">
-                        {students.map(s => (
+                    <div className="space-y-1 max-h-[400px] overflow-y-auto custom-scrollbar">
+                        {filteredStudents.length > 0 ? filteredStudents.map(s => (
                             <button 
                                 key={s.id} 
                                 onClick={() => { setSelectedStudentId(s.id); setShowAddGrade(false); }}
@@ -336,7 +404,9 @@ const Education = () => {
                                 </div>
                                 {s.firstName} {s.lastName}
                             </button>
-                        ))}
+                        )) : (
+                            <p className="text-xs text-slate-400 text-center py-4">No students match filter.</p>
+                        )}
                     </div>
                 </div>
 
@@ -364,7 +434,16 @@ const Education = () => {
                                 <form onSubmit={handleAddGrade} className="mb-6 p-4 bg-purple-50 rounded-xl border border-purple-100 grid grid-cols-5 gap-3 items-end animate-in slide-in-from-top duration-300">
                                     <div className="col-span-2">
                                         <label className="block text-[10px] font-bold text-purple-700 uppercase mb-1">Subject</label>
-                                        <input className="w-full text-xs px-3 py-2 rounded-lg border border-purple-200" value={newGrade.subject} onChange={e => setNewGrade({...newGrade, subject: e.target.value})} placeholder="Math"/>
+                                        <select 
+                                            className="w-full text-xs px-3 py-2 rounded-lg border border-purple-200" 
+                                            value={newGrade.subject} 
+                                            onChange={e => setNewGrade({...newGrade, subject: e.target.value})}
+                                        >
+                                            <option value="">Select Subject</option>
+                                            {availableSubjects.map(sub => (
+                                                <option key={sub} value={sub}>{sub}</option>
+                                            ))}
+                                        </select>
                                     </div>
                                     <div className="col-span-1">
                                         <label className="block text-[10px] font-bold text-purple-700 uppercase mb-1">Score</label>
@@ -420,14 +499,14 @@ const Education = () => {
                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Student</label>
                                 <select className="w-full border rounded-lg px-3 py-2 text-sm" value={omrStudentId} onChange={e => setOmrStudentId(e.target.value)}>
                                     <option value="">Select Student</option>
-                                    {students.map(s => <option key={s.id} value={s.id}>{s.firstName} {s.lastName}</option>)}
+                                    {filteredStudents.map(s => <option key={s.id} value={s.id}>{s.firstName} {s.lastName}</option>)}
                                 </select>
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Lesson / Subject</label>
                                 <select className="w-full border rounded-lg px-3 py-2 text-sm" value={omrSubject} onChange={e => setOmrSubject(e.target.value)}>
                                     <option value="">Select Subject</option>
-                                    {['Math', 'Physics', 'Chemistry', 'Biology', 'History', 'English'].map(s => <option key={s} value={s}>{s}</option>)}
+                                    {availableSubjects.map(s => <option key={s} value={s}>{s}</option>)}
                                 </select>
                             </div>
                         </div>

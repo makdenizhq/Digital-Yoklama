@@ -129,6 +129,7 @@ export interface SchoolSettings {
   isPaidSchool?: boolean;
   feeStructure: FeeType[]; 
   verificationThreshold: VerificationThreshold;
+  lessons?: Record<string, string[]>; // Mapping: Grade Level -> Array of Subjects
 }
 
 export type UserRole = string; 

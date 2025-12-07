@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { ScanFace, Monitor, ExternalLink } from 'lucide-react';
+import { ScanFace, Monitor, ExternalLink, Filter } from 'lucide-react';
 import Scanner from './Scanner';
 import Reports from './Reports';
 
@@ -9,8 +9,12 @@ const Attendance = () => {
   const { t } = useAppContext();
   const [showScanner, setShowScanner] = useState(false);
 
+  // In a real app, Reports component would lift state up or we'd manage filter context here.
+  // For now, we are keeping the Reports logic internal to the Reports component but conceptually 
+  // the filter requested ("select which class") is already inside Reports.tsx. 
+  // We will ensure Reports.tsx has robust class filtering.
+
   const handleProjection = () => {
-      // Calculate position for the second screen (assuming extended display to the right)
       const left = window.screen.availWidth;
       const width = window.screen.availWidth;
       const height = window.screen.availHeight;

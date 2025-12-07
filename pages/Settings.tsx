@@ -1,13 +1,13 @@
 
 import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { Save, Globe, Building, Phone, Users, FileText, Trash2, Plus, Hash, LogOut, Edit, X, RefreshCcw, Shield, Check, UserPlus, ArrowRight, CreditCard, DollarSign, ScanFace } from 'lucide-react';
+import { Save, Globe, Building, Phone, Users, FileText, Trash2, Plus, Hash, LogOut, Edit, X, RefreshCcw, Shield, Check, UserPlus, ArrowRight, CreditCard, DollarSign, ScanFace, BookOpen } from 'lucide-react';
 import { User, UserRole, UserPermission, FeeType } from '../types';
 import ImageUploader from '../components/ImageUploader';
 
 const Settings = () => {
   const { settings, updateSettings, updateRolePermissions, addRole, deleteRole, t, currentUser, users, addUser, deleteUser, restoreUser, deleteUserPermanently, updateUser, logs, logout } = useAppContext();
-  const [activeTab, setActiveTab] = useState<'general' | 'users' | 'roles' | 'logs'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'users' | 'roles' | 'logs' | 'lessons'>('general');
   const [formData, setFormData] = useState(settings);
   const [msg, setMsg] = useState('');
 
@@ -21,6 +21,10 @@ const Settings = () => {
   const [tempPermissions, setTempPermissions] = useState<UserPermission[]>([]);
   const [newRoleName, setNewRoleName] = useState('');
   const [isAddRoleMode, setIsAddRoleMode] = useState(false);
+
+  // Lesson State
+  const [selectedGradeForLessons, setSelectedGradeForLessons] = useState<string>('9');
+  const [newSubject, setNewSubject] = useState('');
 
   // Fee State
   const [newFee, setNewFee] = useState<Partial<FeeType>>({ name: '', amount: 0, frequency: 'monthly' });
@@ -71,6 +75,23 @@ const Settings = () => {
   const handleAddRole = (e: React.FormEvent) => { e.preventDefault(); if (newRoleName.trim()) { addRole(newRoleName.trim()); setNewRoleName(''); setIsAddRoleMode(false); } };
   const deleteRoleHandler = (r: string) => { if(confirm('Delete role? Users will be moved to Staff role.')) deleteRole(r); };
 
+  // Lessons Logic
+  const handleAddSubject = () => {
+      if (!newSubject.trim()) return;
+      const currentLessons = formData.lessons?.[selectedGradeForLessons] || [];
+      if (!currentLessons.includes(newSubject.trim())) {
+          const updatedLessons = { ...formData.lessons, [selectedGradeForLessons]: [...currentLessons, newSubject.trim()] };
+          setFormData({ ...formData, lessons: updatedLessons });
+          setNewSubject('');
+      }
+  };
+
+  const handleRemoveSubject = (subject: string) => {
+      const currentLessons = formData.lessons?.[selectedGradeForLessons] || [];
+      const updatedLessons = { ...formData.lessons, [selectedGradeForLessons]: currentLessons.filter(s => s !== subject) };
+      setFormData({ ...formData, lessons: updatedLessons });
+  };
+
   const filteredUsers = useMemo(() => users.filter(u => userViewMode === 'active' ? !u.isArchived : u.isArchived), [users, userViewMode]);
   const usersInSelectedRole = useMemo(() => users.filter(u => u.role === selectedRole && !u.isArchived), [users, selectedRole]);
   const usersNotInSelectedRole = useMemo(() => users.filter(u => u.role !== selectedRole && !u.isArchived), [users, selectedRole]);
@@ -81,6 +102,7 @@ const Settings = () => {
         <h2 className="text-xl font-bold text-slate-800 mb-4">{t('settings')}</h2>
         <div className="flex gap-1 border-b border-slate-100 overflow-x-auto custom-scrollbar">
             <TabButton active={activeTab === 'general'} onClick={() => setActiveTab('general')} label={t('general')} icon={Building} />
+            <TabButton active={activeTab === 'lessons'} onClick={() => setActiveTab('lessons')} label={t('lessons')} icon={BookOpen} />
             {currentUser?.role === 'admin' && (
                 <>
                 <TabButton active={activeTab === 'users'} onClick={() => setActiveTab('users')} label={t('users')} icon={Users} />
@@ -205,6 +227,66 @@ const Settings = () => {
                 <button type="button" onClick={logout} className="w-full py-3 bg-red-50 text-red-600 rounded-lg font-bold hover:bg-red-100 transition flex items-center justify-center gap-2 text-sm"><LogOut size={18} /> {t('logout')}</button>
             </div>
         </form>
+      )}
+
+      {/* LESSONS TAB */}
+      {activeTab === 'lessons' && (
+          <form onSubmit={handleSubmit} className="bg-white p-5 rounded-xl shadow-sm border border-slate-100 space-y-6 animate-in fade-in">
+              <div className="space-y-4">
+                  <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide flex items-center gap-2"><BookOpen size={16}/> {t('lessons')} Configuration</h3>
+                  
+                  {/* Grade Selector */}
+                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                      <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Select Grade Level</label>
+                      <div className="flex gap-2 flex-wrap">
+                          {['9', '10', '11', '12'].map(g => (
+                              <button 
+                                type="button"
+                                key={g}
+                                onClick={() => setSelectedGradeForLessons(g)}
+                                className={`px-4 py-2 rounded-lg text-sm font-bold transition ${selectedGradeForLessons === g ? 'bg-purple-600 text-white shadow-md' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'}`}
+                              >
+                                  Grade {g}
+                              </button>
+                          ))}
+                      </div>
+                  </div>
+
+                  {/* Subject Management */}
+                  <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
+                      <h4 className="text-sm font-bold text-slate-800 mb-3">Subjects for Grade {selectedGradeForLessons}</h4>
+                      
+                      {/* Add Subject Input */}
+                      <div className="flex gap-2 mb-4">
+                          <input 
+                            placeholder="New Subject (e.g. History)" 
+                            className="flex-1 px-3 py-2 text-sm border rounded-lg"
+                            value={newSubject}
+                            onChange={e => setNewSubject(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddSubject())}
+                          />
+                          <button type="button" onClick={handleAddSubject} className="bg-purple-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-purple-700 flex items-center gap-2">
+                              <Plus size={16}/> Add
+                          </button>
+                      </div>
+
+                      {/* Subject List */}
+                      <div className="flex flex-wrap gap-2">
+                          {(formData.lessons?.[selectedGradeForLessons] || []).map((subject, idx) => (
+                              <div key={idx} className="bg-purple-50 text-purple-700 px-3 py-1.5 rounded-lg text-sm font-bold border border-purple-100 flex items-center gap-2">
+                                  {subject}
+                                  <button type="button" onClick={() => handleRemoveSubject(subject)} className="text-purple-400 hover:text-purple-600 transition"><X size={14}/></button>
+                              </div>
+                          ))}
+                          {(formData.lessons?.[selectedGradeForLessons] || []).length === 0 && (
+                              <p className="text-sm text-slate-400 italic">No subjects added for this grade yet.</p>
+                          )}
+                      </div>
+                  </div>
+              </div>
+              <button type="submit" className="w-full py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition flex items-center justify-center gap-2 text-sm"><Save size={18} /> {t('save')}</button>
+              {msg && <p className="text-center text-green-600 font-medium text-sm">{msg}</p>}
+          </form>
       )}
 
       {/* Users Tab */}

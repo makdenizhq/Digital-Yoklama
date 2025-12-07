@@ -86,7 +86,13 @@ const INITIAL_SETTINGS: SchoolSettings = {
       { id: '3', name: 'Uniform', amount: 150, frequency: 'one_time' },
       { id: '4', name: 'Activity', amount: 100, frequency: 'monthly' }
   ],
-  verificationThreshold: 'medium'
+  verificationThreshold: 'medium',
+  lessons: {
+      '9': ['Math', 'Physics', 'Chemistry', 'Biology', 'History', 'English', 'PE', 'Art'],
+      '10': ['Math', 'Physics', 'Chemistry', 'Biology', 'History', 'English', 'Geography', 'Computer Science'],
+      '11': ['Advanced Math', 'Physics', 'Chemistry', 'Literature', 'History', 'Philosophy'],
+      '12': ['Calculus', 'Advanced Physics', 'Organic Chemistry', 'Literature', 'Sociology']
+  }
 };
 
 const DEFAULT_ADMIN: User = {
@@ -126,6 +132,7 @@ const DICTIONARY: Record<string, Record<string, string>> = {
     settings: "Settings",
     profile: "Profile",
     finance: "Finance & Payments",
+    lessons: "Lessons",
     
     // Finance
     payments: "Payments",
@@ -203,6 +210,7 @@ const DICTIONARY: Record<string, Record<string, string>> = {
     settings: "Ayarlar",
     profile: "Profil",
     finance: "Harcama ve Ödemeler",
+    lessons: "Dersler",
 
     // Finance
     payments: "Ödemeler",
@@ -300,7 +308,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         ...INITIAL_SETTINGS, 
         ...parsed,
         feeStructure: fees,
-        rolePermissions: parsed.rolePermissions || DEFAULT_PERMISSIONS
+        rolePermissions: parsed.rolePermissions || DEFAULT_PERMISSIONS,
+        lessons: parsed.lessons || INITIAL_SETTINGS.lessons // Ensure lessons are loaded
     };
   });
 
